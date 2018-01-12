@@ -1,5 +1,5 @@
-#include "keyboard.h"
-#include "terminal.h"
+#include <terminal.h>
+#include <keyboard.h>
 
 void print_init_msg(void)
 {
@@ -14,8 +14,13 @@ char *hard_drives_detected  = (char *)0x0475; // byte
 char *num_text_columns      = (char *)0x044A; // word
 char *keyboard_buffer_start = (char *)0x0480; // word
 char *keyboard_buffer_end   = (char *)0x0482; // word
-void print_bios_data_area_info(void)
+
+static void print_bios_data_area_info(void)
 {
+    //terminal_set_fg_color(COLOR_LIGHT_BLUE);
+    //terminal_writestring("======================================\n");
+    //terminal_set_fg_color(COLOR_WHITE);
+    //terminal_writestring("Reading the BIOS data area\n");
     terminal_set_fg_color(COLOR_LIGHT_GREEN);
 
     terminal_writestring("Video mode is: ");
@@ -42,6 +47,8 @@ void print_bios_data_area_info(void)
     terminal_print_word(*keyboard_buffer_end);
     terminal_writestring("\n");
 
+    terminal_set_fg_color(COLOR_LIGHT_BLUE);
+    terminal_writestring("======================================\n");
     terminal_set_fg_color(COLOR_LIGHT_GREY);
 }
 

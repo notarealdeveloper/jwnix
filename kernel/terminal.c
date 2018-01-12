@@ -1,7 +1,7 @@
-#include "terminal.h"
-#include "keyboard.h"
-#include "string.h"
-#include "types.h"
+#include <terminal.h>
+#include <keyboard.h>
+#include <stdlib.h>
+#include <types.h>
 
 /* Begin cursor functions */
 #define CHARSIZE    2
@@ -17,8 +17,21 @@
 
 unsigned short cursor;  /* Make this depend on term->row and term->col */
 
+
+struct terminal __term = {
+    .fg_color   = COLOR_LIGHT_GREY,
+    .bg_color   = COLOR_BLACK,
+    .buffer     = (u16*) VGABASE,
+    .row        = CURSOR_START_LINE,
+    .col        = 0,
+}, *term = &__term;
+
 void cursor_draw(void)
 {
+    /* Update the cursor location in memory */
+    cursor = term->col + VGA_WIDTH*term->row;
+
+    /* Then tell the hardware about it */
     outb(0x0f, 0x3d4);
     outb(BYTE0(cursor), 0x3d5);
     outb(0x0e, 0x3d4);
@@ -30,15 +43,6 @@ void cursor_init(void)
     cursor = 0x0000 + CURSOR_START_LINE*VGAWIDTH;
     cursor_draw();
 }
-
-struct terminal __term = {
-    .fg_color   = COLOR_LIGHT_GREY,
-    .bg_color   = COLOR_BLACK,
-    .buffer     = (u16*) VGABASE,
-    .row        = CURSOR_START_LINE,
-    .col        = 0,
-}, *term = &__term;
-
 
 void terminal_set_fg_color(char fg)
 {
@@ -89,17 +93,21 @@ void terminal_putchar(unsigned char c)
         return;
     else if (c == BS) {
         terminal_putentryat(' ', --term->col, term->row);
-        cursor -= 1;
+        if (term->col == 0) {
+            if (term->row == 0) {
+                return;
+            } else {
+                term->col = VGA_WIDTH;
+                --term->row;
+            }
+        }
     } else if (c == LF) {
         term->col = 0, ++term->row;
-        cursor += VGAWIDTH - (cursor % VGAWIDTH);
     } else if (c == TAB) {
         for (i = 0; i < 4; i++)
             terminal_putchar(' ');
-        cursor += 4;
     } else {
         terminal_putentryat(c, term->col, term->row);
-        cursor += 1;
         if (++term->col == VGA_WIDTH) {
             term->col = 0;
             if (++term->row == VGA_HEIGHT)
@@ -150,7 +158,6 @@ void terminal_print_word(u16 c)
                                 bytes[nybble2], bytes[nybble1], ' ', 0};
     terminal_writestring(hexstr);
 }
-
 
 unsigned char terminal_handle_keyboard_input(void)
 {

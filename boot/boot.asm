@@ -75,12 +75,12 @@ start:
     je freedom
 
     ; Same as above, but trying 0x80, instead of number from BIOS
-    mov si, DAP
-    mov ah, 0x42
-    mov dl, 0x80
-    int 0x13
-    cmp dword [SYSLOAD], 0x31c031fa
-    je freedom
+    ;mov si, DAP
+    ;mov ah, 0x42
+    ;mov dl, 0x80
+    ;int 0x13
+    ;cmp dword [SYSLOAD], 0x31c031fa
+    ;je freedom
 
     wait 0x1000
     jmp fighttothedeath
@@ -106,7 +106,7 @@ start:
 
 
 %include "boot/gdt.asm"
-%include "boot/real-mode-interrupts.asm"
+%include "boot/interrupt16.asm"
 
 align 16
 printmsg:

@@ -1,4 +1,3 @@
-#include "types.h"
 
 /* Reinitialize the PIC controllers, giving them sensible
  * offsets rather than the defaults of 0x08 and 0x70.
@@ -21,14 +20,14 @@
 #define ICW4_BUF_MASTER  0x0C       /* Buffered mode/master */
 #define ICW4_SFNM        0x10       /* Special fully nested (not) */
 
-static inline void outb(u16 port, u8 val)
+static inline void outb(unsigned short port, unsigned char val)
 {
     asm volatile ( "outb %0, %1" : : "a"(val), "Nd"(port) );
 }
 
-static inline u8 inb(u16 port)
+static inline unsigned char inb(unsigned short port)
 {
-    u8 ret;
+    unsigned char ret;
     asm volatile ( "inb %1, %0" : "=a"(ret) : "Nd"(port) );
     return ret;
 }
@@ -85,32 +84,4 @@ void pic_remap()
     outb(PIC1_DATA, a1);
     outb(PIC2_DATA, a2);
 }
-
-/* Here's how Linus did the above in Linux 0.01 
-   This is identical to what we're doing above.
-
-    mov     al, 0x11        ; initialization sequence
-    out     0x20, al        ; send it to 8259A-1
-    out     0xA0, al        ; and to 8259A-2
-
-    mov     al, 0x20        ; start of hardware int's (0x20)
-    out     0x21, al
-
-    mov     al, 0x28        ; start of hardware int's 2 (0x28)
-    out     0xA1, al
-
-    mov     al, 0x04        ; 8259-1 is master
-    out     0x21, al
-
-    mov     al, 0x02        ; 8259-2 is slave
-    out     0xA1, al
-
-    mov     al, 0x01        ; 8086 mode for both
-    out     0x21, al
-    out     0xA1, al
-
-    mov     al, 0xFF        ; mask off all interrupts for now
-    out     0x21, al
-    out     0xA1, al
-*/
 

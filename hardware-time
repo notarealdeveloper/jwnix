@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#sudo dd if=jasonwnix of=/dev/sda11  bs=512
+sudo dd if=jasonwnix of=/dev/sda11  bs=512
 sudo dd if=jasonwnix of=/dev/sdb    bs=512
-#sudo dd if=jasonwnix of=/dev/sdc    bs=512
+sudo dd if=jasonwnix of=/dev/sdc    bs=512
 sync

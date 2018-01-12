@@ -53,11 +53,11 @@ debugrun () {
     rm -f "$logfile"
 }
 
-rm -f *.bin *.flp *.iso
+rm -f "$osname"
 make
-
 flpboot
+
 # isoboot
 # debugrun
 
-make -s clean
+make clean

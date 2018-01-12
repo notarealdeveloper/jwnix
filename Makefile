@@ -1,26 +1,90 @@
+# Run make -pn to see the preprocessed Makefile
+
 CC 	    = gcc
 AS      = gas
-CFLAGS  = -m32 -ffreestanding -nostdlib -Wall -Wextra -I.
-OBJS    = pmode.o kmain.o keyboard.o terminal.o string.o pic.o
+ASM     = nasm
+LD32    = ld -m elf_i386
+INCLUDE = -I include
+CFLAGS  = -m32 -ffreestanding -nostdlib -Wall -Wextra $(INCLUDE)
+SYSLOAD = 0x8000
 
-default:
-	make bootloader
-	make kernel
-	make image
+# Make the build nice to look at
+Q		= @
+MSG		= echo -e "  (MSG)\t   "
+ASMSG	= echo -e "  (ASM)\t   "
+CCMSG	= echo -e "  (CC) \t   "
+
+TARGET_ARCH	=
+CPPFLAGS 	=
+MAKEFLAGS  += --no-print-directory --warn-undefined-variables
+
+# Note: entry32.asm has to be first, or else we need a linker script
+obj :=
+
+
+# include the description for each module
+MODULES := 	kernel drivers
+INCLUDE += 	$(patsubst %,-I %,$(MODULES))
+include		$(patsubst %,%/Makefile,$(MODULES))
+
+# Names of the targets we'll define later, to build each subdirectory
+BUILDMODULES   = $(MODULES:%=build-%)
+
+
+%.o: %.c
+	$(Q)$(CCMSG)"$<"
+	$(Q)$(CC) -c -o $@ $< $(CFLAGS)
+
+%.o: %.asm
+	$(Q)$(ASMSG)"$<"
+	$(Q)$(ASM) -f elf32 -o $@ $<
+
+#all: syntax-examples bootloader jasonwnix
+all: bootloader jasonwnix
+
+syntax-examples:
+	$(Q)$(MSG)"Starting build in target $@. Get ready bitches!"
+	$(Q)$(MSG)"INCLUDE = $(INCLUDE)"
+	$(Q)$(MSG)"MODULES = "$(MODULES)
+	$(Q)$(MSG)"BUILDMODULES = "$(patsubst %,build-%,$(MODULES))
+	$(Q)$(MSG)$(filter drivers/%,$(obj))
+	$(Q)$(MSG)$(foreach o,$(filter kernel/%,$(obj)),$$(basename $o))
 
 bootloader:
-	nasm -f bin -o boot.bin boot/boot.asm
+	$(Q)$(ASMSG)boot/boot.asm
+	$(Q)$(ASM) -f bin -o boot/boot.{bin,asm}
 
-kernel:
-	# Everything past the bootloader is compiled to elf so we can link.
-	# Then we strip the elf image down to raw binary at the end.
-	nasm -f elf32 -o pmode.{o,asm}
-	$(CC) $(CFLAGS) -c *.c
-	ld -m elf_i386 --oformat=binary -Ttext=0x8000 -o kernel.bin $(OBJS)
+jasonwnix: $(BUILDMODULES)
+#	$(Q)$(MSG)obj = $(obj)
+	$(Q)$(MSG)"Linking object files"
+	$(Q)$(LD32) --oformat=binary -Ttext=$(SYSLOAD) -o kernel.bin $(obj)
+	$(Q)$(MSG)"Making bootable image"
+	$(Q)cat boot/boot.bin kernel.bin > jasonwnix
 
-image:
-	# Original gangsta ;-)
-	cat boot.bin kernel.bin > jasonwnix
+
+# Here's where all the magic lives
+# Each call to this with some argument "stuff" defines a target called 
+# build-stuff whose dependencies are the set of all object files
+# in $(obj) that start with stuff/. It may turn out that this fails when
+# the .c filename itself contains the module name. If so, try this:
+# build-$(1): $(shell echo $(obj) | grep -Eo $(1)"/[^ ]*")
+define target-factory
+build-$(1): $(filter $(1)/%,  $(obj))
+#	$(Q)$(MSG)"In target build-$(1)"
+endef
+
+# Like a boss!
+# ============
+$(foreach mod, $(MODULES), $(eval $(call target-factory,$(mod))))
+
+# The less dynamic way
+# $(eval $(call target-factory,kernel))
+# $(eval $(call target-factory,drivers))
 
 clean:
-	rm -f *.bin *.o # jasonwnix
+	$(Q)$(MSG)"Cleaning source tree"
+	$(Q)find -type f -regextype egrep -regex \
+		'.*\.(bin|o)' -exec rm '{}' ';'
+
+.PHONY: subdirs $(MODULES)
+.PHONY: all clean
