@@ -1,0 +1,39 @@
+Enabling paging is actually very simple.
+
+All that is needed is to load CR3 with the address of the page directory and to set the paging bit of CR0.
+
+mov eax, [page_directory]
+mov cr3, eax
+mov eax, cr0
+or  eax, 0x80000000
+mov cr0, eax
+
+In the page table, each entry points to a physical address that is then mapped to the virtual address found by calculating the offset within the directory and the offset within the table.
+
+Note: Since 4096 is 2**12, each byte within a page takes 12 bits to specify. We can calculate the physical address by taking:
+Page directory index (bits 31-22) : Page table index (bits 21-12) : Offset into page (11-0)
+or something like that...
+
+Mapping a virtual address to a physical address can be done as follows:
+
+void map_page(void *physaddr, void *virtualaddr, unsigned int flags)
+{
+    // Make sure that both addresses are page-aligned.
+    unsigned long pdindex = (unsigned long)virtualaddr >> 22;
+    unsigned long ptindex = (unsigned long)virtualaddr >> 12 & 0x03FF;
+ 
+    unsigned long * pd = (unsigned long *)0xFFFFF000;
+    // Here you need to check whether the PD entry is present.
+    // When it is not present, you need to create a new empty PT and
+    // adjust the PDE accordingly.
+ 
+    unsigned long * pt = ((unsigned long *)0xFFC00000) + (0x400 * pdindex);
+    // Here you need to check whether the PT entry is present.
+    // When it is, then there is already a mapping present. What do you do now?
+ 
+    pt[ptindex] = ((unsigned long)physaddr) | (flags & 0xFFF) | 0x01; // Present
+ 
+    // Now you need to flush the entry in the TLB
+    // or you might not notice the change.
+}
+
