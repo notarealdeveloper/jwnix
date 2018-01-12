@@ -66,8 +66,7 @@ start:
     ; cmp eax, 0xdeadbeef   ; to use this magic, do jmp 0x0000:SYSLOAD+4
     ; cmp eax, 0x90909090   ; safe, but nasm often makes nop sleds...
     ; =======================================
-    mov eax, [SYSLOAD]
-    cmp eax, 0xc03166fa     ; Magic = machine code for "cli; xor eax,eax"
+    cmp dword [SYSLOAD], 0xc03166fa
     jne loading_is_fucked
 
     jmp overthefuckfest
@@ -94,7 +93,7 @@ DAP:
 sectrs: dw    16        ; number of sectors (blocks) to copy (1 works)
 dstloc: dw    SYSLOAD   ; where to copy the data (offset)
         dw    0x0000    ; where to copy the data (segment) (was 0x1000)
-srcloc: dd    1         ; starting LBA (starts at 0, so do 1. 0 flashes!)
+srcloc: dd    2         ; starting LBA (starts at 0, so do 1. 0 flashes!)
         dd    0         ; used for upper part of 48 bit LBAs
 
 
@@ -186,3 +185,5 @@ gdt48:
 
 times 510-($-$$) db 0x00 ; pad remainder of boot sector with zeros
 dw 0xAA55                ; the standard pc boot signature
+times 512 db 0x00
+;times 1024 db 0x00

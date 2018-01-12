@@ -372,7 +372,6 @@ protectedmode:
     ; since it's almost certainly something you've encountered by now :)
     ; http://en.wikipedia.org/wiki/Triple_fault
 
-
     jmp halt
 
 halt:

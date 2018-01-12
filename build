@@ -6,20 +6,17 @@ die () {
     printf "$1\n" && exit 1
 }
 
+# Note: The 512 byte bootsector limit doesn't seem to apply to the iso,
+# but we'll try to obey it anyway so that floppy and iso both work.
 isoboot () {
-    # Note: The 512 byte bootsector limit doesn't apply to iso
     # Make a bootable iso
     isodir=isodir
-    rm -rf "$isodir"
-    mkdir -p "$isodir" &&
-    cp "$osname" "$isodir" &&
+    rm -rf "$isodir" && mkdir -p "$isodir" && cp "$osname" "$isodir" &&
     mkisofs -no-emul-boot -input-charset=utf8 \
         -o "$osname.iso" -b "$osname" "$isodir/"
-    rm -rf "$isodir"
-
     # Boot the iso
     qemu-system-x86_64 -cdrom "$osname.iso"
-    rm -f "$osname.iso" "$isodir"
+    rm -rf "$osname.iso" "$isodir"
 }
 
 flpboot () {
@@ -33,6 +30,6 @@ flpboot () {
 
 rm -f *.bin *.flp *.iso
 make
-# isoboot
+isoboot
 flpboot
-# make clean
+make clean
