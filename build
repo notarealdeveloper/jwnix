@@ -57,7 +57,7 @@ rm -f *.bin *.flp *.iso
 make
 
 flpboot
-isoboot
+# isoboot
 # debugrun
 
-make -s clean
+# make -s clean

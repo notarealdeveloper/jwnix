@@ -90,15 +90,14 @@ protectedmode:
     mov ss, eax
     mov esp, 0x7c00             ; Set a known free location for the stack
 
-    ; Previously, we had this. 
-    ; However, I'm trying to minimize dependencies on SYSLOAD
-    ; %define SYSLOAD  0x8400
-    ; mov esp, SYSLOAD
+    mov ebx, 0xb8000 + 11*0xa0
+    mov dword [ebx], (0x0700+"P")
 
     mov     ax, 0x0300          ; ah determines the fg and bg color
     mov     esi, protmsg        ; the message to print
     mov     edi, 0xb8000+0xa0   ; base address of vga memory map + 1 line
     call    printmsg
+
 
     ; Now that you're here, you should relax and enjoy this article, 
     ; since it's almost certainly something you've encountered by now :)

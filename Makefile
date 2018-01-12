@@ -17,11 +17,11 @@ kernel:
 	nasm -f elf32 -o pmode.{o,asm}
 	$(CC) $(CFLAGS) -c *.c
 	# ld -m elf_i386 --oformat=binary -Ttext=0x0000 -o kernel.bin $(OBJS)
-	ld -m elf_i386 --oformat=binary  -Ttext=0x8400 -o kernel.bin $(OBJS)
+	ld -m elf_i386 --oformat=binary  -Ttext=0x8000 -o kernel.bin $(OBJS)
 
 image:
 	# Original gangsta ;-)
 	cat boot.bin kernel.bin > jasonwnix
 
 clean:
-	rm -f *.bin *.o jasonwnix
+	rm -f *.bin *.o # jasonwnix
