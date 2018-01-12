@@ -1,0 +1,66 @@
+#!/bin/bash
+
+echo "Note to self: You probably shouldn't be running this anymore"
+exit 1
+
+# This is the script I used to auto import the old project
+# history into git. It's not intended to be run more than once,
+# so there's no use adding proper option processing and safety
+# and such to it. I'll just keep it around for a little bit in case
+# I need to start over and do this again in the near future.
+
+cd versions
+ls | while read dir; do
+
+    #echo "$dir"
+    time=$(find "$dir" -type f \
+        \( -name jasonwnix.asm -or -name boot.asm \) \
+        -exec stat -c "%y" '{}' ';' \
+    | sed 's@\..*@@g')
+
+    msg="Commit auto generated from state at $time"
+
+    dir_suffix=
+    dir_suffix="$(echo "$dir" | sed -r 's@^[0-9][.][0-9][0-9]-?@@g')"
+    dir_suffix="$(echo "$dir_suffix" | sed -r 's@-@ @g')"
+    dir_suffix="$(echo "$dir_suffix" | sed -r 's@^.@\U&@g')"
+
+    #echo "dir_suffix = $dir_suffix"
+
+    if [[ -n $dir_suffix ]]; then
+
+        commit_msg="$msg
+
+$dir_suffix"
+
+    else
+
+        commit_msg="$msg"
+
+    fi
+
+    echo -e "$commit_msg"
+
+    if [[ "$(pwd)" != "$HOME/Desktop/github/jwnix/versions" ]]; then
+        echo 'Not in the right place! Dying for safety.'
+        exit 1
+    fi
+
+    cp -rv "$dir"/* ../jwnix
+    pushd ../jwnix
+    git add .
+    git commit -m "$commit_msg"
+    if [[ "$(pwd)" != "$HOME/Desktop/github/jwnix/jwnix" ]]; then
+        echo 'Not in the right place! Dying for safety.'
+        exit 1
+    fi
+    if [[ ! -d ".git" ]]; then
+        echo 'No git directory! Dying for safety.'
+        exit 1
+    fi
+
+    rm -vr *
+    popd
+
+    echo -ne "\n--------------\n"
+done
