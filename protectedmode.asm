@@ -5,7 +5,6 @@
 ; into this file's code.
 
 %define SYSLOAD     0x8000
-ORG     SYSLOAD
 
 section .text
 ; ====================== ;
@@ -80,7 +79,7 @@ protectedmode:
     mov fs, eax
     mov gs, eax
     mov ss, eax
-    mov esp, 0x8000         ; Set a known free location for the stack
+    mov esp, SYSLOAD    ; Set a known free location for the stack
 
     ; Make sure we're really in protected mode
     mov eax, cr0
@@ -91,10 +90,12 @@ protectedmode:
     call    cursor_init                     ; set up the cursor
     call    cursor_down                     ; move it down one row
 
-    mov     ax,  0x0300         ; ah determines the fg and bg color
+    mov     ax, 0x0300          ; ah determines the fg and bg color
     mov     esi, protmsg        ; the message to print
     mov     edi, 0xb8000+0xa0   ; base address of vga memory map + 1 line
     call    printmsg
+
+    call linker_test
 
     ; Write "32!" into VGA memory, for fun
     mov [0xb8000+(2*0xa0)-(2*3)], byte "3"
@@ -126,6 +127,21 @@ printmsg:
     popa                ; pop all general purpose registers
     ret
 
+
+extern gccfunc
+global nasmfunc
+linker_test:
+    call gccfunc
+    ret
+nasmfunc:
+    mov     ax, 0x0500          ; ah determines the fg and bg color
+    mov     esi, linkmsg        ; the message to print
+    mov     edi, 0xb8000+2*0xa0 ; base address of vga memory map + 1 line
+    call    printmsg
+    ret
+
+
 section .data
 protmsg: db "Entered protected mode!", 0x00
+linkmsg: db "Successfully linked with C!", 0x00
 

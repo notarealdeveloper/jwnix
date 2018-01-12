@@ -59,7 +59,7 @@ start:
     int 0x13
 
     ; Check that the loading went as expected
-    cmp dword [SYSLOAD], 0x31c031fa     ; First four bytes of the kernel
+    cmp dword [SYSLOAD], 0x31c031fa ; First four bytes of the kernel
     jne loading_is_fucked
 
 
