@@ -15,19 +15,21 @@
 ; diff <(sudo head -c +512 /dev/sda11 | hexdump -Cv) \
        <(sudo head -c +512 /dev/sdb   | hexdump -Cv)
 
+; Note: Use SYSBLOCK = (SYSLOAD-0x7c00)/0x200 hack to make iso happy.
 
-ORG     0x7c00              ; This makes life *so* much easier!!!
 BITS    16
-
-; Note: If you modify this, remember to modify it in stage two as well.
-%define SYSLOAD 0x8400      ; where we'll load the rest of the system
+ORG     0x7c00                  ; Life was *hard* before we found this!
+%define SYSLOAD     0x8000      ; Where we'll load the system
+%define SYSBLOCK    4           ; First logical block to load
 
 %macro wait 1
+    push    ecx
     mov     ecx, %1
     .nothing:
     dec     ecx
     cmp     ecx, 0
     jne     .nothing
+    pop     ecx
 %endmacro
 
 align 16
@@ -48,8 +50,8 @@ start:
     call    clear_screen                    ; kill bios boot messages
 
     ; If "OK" appears on the far right, then interrupts work.
-    ; call    fill_interrupt_vector_table
-    ; call    test_real_mode_interrupts
+    call    fill_interrupt_vector_table
+    call    test_real_mode_interrupts
 
     ; ==================================================
     ; Time to play chicken with the hardware!
@@ -59,9 +61,9 @@ start:
 
     fighttothedeath:
     ; While we're here, try an init message
-    mov     ax,  0x0200                     ; ah determines fg & bg color
-    mov     esi, initmsg                    ; move initmsg into si
-    mov     edi, 0xb8000                    ; first line of vga memory
+    mov     ax, 0x0700                      ; ah holds fg & bg color
+    mov     si, initmsg                     ; move initmsg into si
+    mov     di, 0x0000                      ; first line of vga memory
     call    printmsg                        ; and print it.
 
     ; Try loading stage two using the disk number we got from the BIOS
@@ -104,24 +106,22 @@ start:
 
 
 %include "boot/gdt.asm"
-; %include "boot/real-mode-interrupts.asm"
-
-
+%include "boot/real-mode-interrupts.asm"
 
 align 16
 printmsg:
     ; put string address in si beforehand
-    pusha               ; push all general purpose registers
-    cld                 ; clear the direction flag
-    .getchar:           ; this is our loop label
-    lodsb               ; Load byte at address ds:(e)si into al
-    cmp al,     0x00    ; If the byte is 0,
-    je .done            ; then we're done
-    mov word [edi], ax  ; otherwise, write the vga entry (fg4,bg4,byte8)
-    add edi, 0x02       ; pointer++, since ebx is a (short *)
-    jmp .getchar        ; get the next character
+    pusha
+    cld                         ; clear the direction flag
+    .getchar:                   ; this is our loop label
+    lodsb                       ; Load byte at address ds:(e)si into al
+    cmp al,     0x00            ; If the byte is 0,
+    je .done                    ; then we're done
+    mov word [0xb8000+edi], ax  ; else, write vga entry (fg4,bg4,byte8)
+    add di, 0x02                ; pointer++, since ebx is a (short *)
+    jmp .getchar                ; get the next character
     .done:
-    popa                ; pop all general purpose registers
+    popa
     ret
 
 align 16
@@ -139,7 +139,6 @@ clear_screen:
     jmp         .clearslot
     .done:      ret
 
-
 align 16
 DAP:
         db    0x10      ; size of this disk address packet (16)
@@ -147,7 +146,7 @@ DAP:
 sectrs: dw    20        ; number of sectors (blocks) to copy (1 works)
 dstloc: dw    SYSLOAD   ; where to copy the data (offset)
         dw    0x0000    ; where to copy the data (segment)
-srcloc: dd    4         ; starting LBA (starts at 0)
+srcloc: dd    SYSBLOCK  ; starting LBA (starts at 0)
         dd    0         ; used for upper part of 48 bit LBAs
 
 initmsg:    db "JasonWnix is booting...", 0x00
@@ -155,5 +154,4 @@ drv:        db 0x00
 
 times 510-($-$$) db 0x00 ; pad remainder of boot sector with zeros
 dw 0xAA55                ; the standard pc boot signature
-times 512  db 0x00
-times 1024 db 0x00
+times 512*(SYSBLOCK-1)   db 0x00

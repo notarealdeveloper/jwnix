@@ -90,11 +90,11 @@ protectedmode:
     mov ss, eax
     mov esp, 0x7c00             ; Set a known free location for the stack
 
-    mov     ax, 0x0300          ; ah determines the fg and bg color
-    mov     esi, protmsg        ; the message to print
-    mov     edi, 0xb8000+0xa0   ; base address of vga memory map + 1 line
-    call    printmsg
 
+    mov     ax,  0x0200         ; ah determines the fg and bg color
+    mov     esi, initmsg        ; the message to print
+    mov     edi, 0xb8000        ; base address of vga memory map
+    call    printmsg
 
     ; Now that you're here, you should relax and enjoy this article, 
     ; since it's almost certainly something you've encountered by now :)
@@ -120,6 +120,11 @@ protectedmode:
     ; master PIC (i.e. IRQs 0-7), use outb 0x20, 0x20. For interrupts 
     ; from the slave PIC (i.e. IRQs 8-15), use outb 0x20, 0x20 followed
     ; by outb 0xa0, 0x20.
+
+    mov     ax, 0x0400
+    mov     esi, picmsg
+    mov     edi, 0xb8000+2*0xa0
+    call    printmsg
 
     ; First, remap the PIC because IBM fucked up back in the dark ages...
     call pic_remap
@@ -156,9 +161,9 @@ halt:
 
 int_handler_software:
     pusha
-    mov     ax,  0x0400         ; ah determines the fg and bg color
+    mov     ax,  0x0300         ; ah determines the fg and bg color
     mov     esi, idtmsg         ; the message to print
-    mov     edi, 0xb8000+2*0xa0 ; base addr of vga memory map + 2 lines
+    mov     edi, 0xb8000+1*0xa0 ; base addr of vga memory map + 2 lines
     call    printmsg
     popa
     iret
@@ -258,8 +263,9 @@ load_skeleton_idt_entry:
 
 
 section .data
-protmsg:    db "Entered protected mode!", 0x00
+initmsg:    db "JasonWnix is booting...", 0x00
 idtmsg:     db "Protected mode interrupts are working!", 0x00
+picmsg:     db "Programming the interrupt controller.", 0x00
 kbdmsg:     db "Keyboard interrupt handler called", 0x00
 timermsg:   db "Timer interrupt handler called", 0x00
 linkmsg:    db "Successfully linked with C!", 0x00
@@ -327,26 +333,3 @@ idt32end:
 ; jmp 0x0008:SYSLOAD to enter protected mode
 ; after setting the PM bit in cr0.
 
-
-
-
-
-; OLD STUFF TO REMOVE ;
-
-; From keyboard interrupt handler
-
-;.waitforstatus:
-; Read port 0x64, & check if low bit is 1
-;in   al, 0x64
-;and  al, 0x01
-;cmp  al, 0x01
-;jne  .waitforstatus
-;in   al, 0x60   ; Read scancode from port 0x60
-
-; Print a message to the screen
-;mov     ax,  0x0600         ; ah determines the fg and bg color
-;mov     esi, kbdmsg         ; the message to print
-;mov     edi, 0xb8000+4*0xa0
-;add     edi, dword [LINE]
-;add     dword [LINE], 0xa0
-;call    printmsg
