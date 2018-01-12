@@ -51,6 +51,13 @@ start:
     mov ebx, 0xb8000 + 6*0xa0
     mov dword [ebx], (0x0700+"1")
 
+    mov     ax,  0x0200                     ; ah determines fg & bg color
+    mov     esi, initmsg                    ; move initmsg into si
+    mov     edi, 0xb8000                    ; first line of vga memory
+    call    printmsg                        ; and print it.
+
+    mov ebx, 0xb8000 + 7*0xa0
+    mov dword [ebx], (0x0700+"2")
 
     ; If "OK" appears on the far right, then interrupts work.
     ;call    fill_interrupt_vector_table
@@ -65,8 +72,8 @@ start:
     mov dl, byte [drv]  ; dl = drive type (0x80 for HDs, etc.)
     int 0x13
 
-    mov ebx, 0xb8000 + 7*0xa0
-    mov dword [ebx], (0x0700+"2")
+    mov ebx, 0xb8000 + 8*0xa0
+    mov dword [ebx], (0x0700+"3")
 
 
     ; Now we want to load stage two at SYSLOAD
@@ -88,27 +95,26 @@ start:
     ; DL = Drive number. For hard disks, this = 1<<7 = 0b10000000 = 0x80
     ; ES:BX -> data buffer
 
-    mov di, 20
-    try_read_again:
+    mov di, 3
+    a:
     mov bx, SYSLOAD                 ; es:bx == 0x0000:bx -> buffer
-    mov ah, 0x02                    ; routine index inside int 0x13
+    mov ah, 0x02
     mov al, 0x10                    ; al = total sector count
     mov ch, 0x00                    ; ch: cylinder & 0xff
     mov cl, 0x03 | ((0>>2)&0xc0)    ; cl: sector | ((cylinder>>2)&0xc0)
     mov dh, 0x00                    ; dh: head
     mov dl, byte [drv]              ; dl = drive number. Typically 0x80
     int 0x13
-
     dec di
     cmp di, 0
-    je loading_is_fucked
-    cmp dword [SYSLOAD], 0x31c031fa ; First four bytes of the kernel
-    jne try_read_again
-    done_reading:
+    jne a
 
+    mov ebx, 0xb8000 + 9*0xa0
+    mov dword [ebx], (0x0700+"4")
 
-    mov ebx, 0xb8000 + 8*0xa0
-    mov dword [ebx], (0x0700+"3")
+    ; Check that the loading went as expected
+    ;cmp dword [SYSLOAD], 0x31c031fa ; First four bytes of the kernel
+    ;jne loading_is_fucked
 
     ; Time for protected mode!
     ; ========================
@@ -121,14 +127,6 @@ start:
     mov eax, cr0            ; grab control register zero
     or  eax, 0x01           ; set protected mode (PE) bit
     mov cr0, eax            ; ready... set...
-
-    mov ebx, 0xb8000 + 9*0xa0
-    mov dword [ebx], (0x0700+"4")
-
-    mov     ax,  0x0200                     ; ah determines fg & bg color
-    mov     esi, initmsg                    ; move initmsg into si
-    mov     edi, 0xb8000                    ; first line of vga memory
-    call    printmsg                        ; and print it.
 
     mov ebx, 0xb8000 + 10*0xa0
     mov dword [ebx], (0x0700+"5")
@@ -147,6 +145,9 @@ loading_is_fucked:
     mov esi, loadfail
     mov edi, 0xb8000
     call printmsg
+    sti
+    hlt
+    cli
     jmp loading_is_fucked
 
 
@@ -170,19 +171,19 @@ printmsg:
 %define CHARSIZE   2        ; VGA characters are 2 bytes
 %define VGAWIDTH   80       ; Rows have 80 == 0xa0 slots
 %define VGAHEIGHT  25       ; Cols have 25 == 0x19 slots
-;align 16
-;clear_screen:
-;    mov         ebx,    0xb8000
-;    .clearslot:
-;    cmp         ebx,    0xb8000 + (CHARSIZE)*(VGAWIDTH*VGAHEIGHT)
-;    jge         .done
-;    ; Even empty cells need grey foreground so we can always see the 
-;    ; cursor, even if it has been moved over an empty cell. Hence 0x0700
-;    ; i.e., Black bg (0x0), grey fg (0x7), nul byte (0x00)
-;    mov word    [ebx],  0x0700
-;    add         ebx,    2
-;    jmp         .clearslot
-;    .done:      ret
+align 16
+clear_screen:
+    mov         ebx,    0xb8000
+    .clearslot:
+    cmp         ebx,    0xb8000 + (CHARSIZE)*(VGAWIDTH*VGAHEIGHT)
+    jge         .done
+    ; Even empty cells need grey foreground so we can always see the 
+    ; cursor, even if it has been moved over an empty cell. Hence 0x0700
+    ; i.e., Black bg (0x0), grey fg (0x7), nul byte (0x00)
+    mov word    [ebx],  0x0700
+    add         ebx,    2
+    jmp         .clearslot
+    .done:      ret
 
 
 DAP:
