@@ -18,7 +18,7 @@ isoboot () {
     rm -rf "$isodir"
 
     # Boot the iso
-    qemu-system-x86_64 -boot d -cdrom "$osname.iso"
+    qemu-system-x86_64 -cdrom "$osname.iso"
     rm -f "$osname.iso" "$isodir"
 }
 
