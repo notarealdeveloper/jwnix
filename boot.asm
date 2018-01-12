@@ -9,13 +9,18 @@
 
 ; How to learn from the various bootsectors on my partitions ;)
 ; sudo head -c +512 /dev/sda  | ndisasm - | grep -C 7 'int 0x.*'
-; sudo head -c +512 /dev/sda  | ndisasm - | grep -C 7 'int 0x.*'
+
+; Make sure the dd worked identically for two different drives, at
+; least within the bootsector.
+; diff <(sudo head -c +512 /dev/sda11 | hexdump -Cv) \
+       <(sudo head -c +512 /dev/sdb   | hexdump -Cv)
+
 
 ORG     0x7c00              ; This makes life *so* much easier!!!
 BITS    16
 
 ; Note: If you modify this, remember to modify it in stage two as well.
-%define SYSLOAD 0x8000      ; where we'll load the rest of the system
+%define SYSLOAD 0x8400      ; where we'll load the rest of the system
 
 %macro wait 1
     mov     ecx, %1
@@ -43,8 +48,8 @@ start:
     call    clear_screen                    ; kill bios boot messages
 
     ; If "OK" appears on the far right, then interrupts work.
-    call    fill_interrupt_vector_table
-    call    test_real_mode_interrupts
+    ; call    fill_interrupt_vector_table
+    ; call    test_real_mode_interrupts
 
     ; ==================================================
     ; Time to play chicken with the hardware!
@@ -99,7 +104,7 @@ start:
 
 
 %include "boot/gdt.asm"
-%include "boot/real-mode-interrupts.asm"
+; %include "boot/real-mode-interrupts.asm"
 
 
 
@@ -119,16 +124,12 @@ printmsg:
     popa                ; pop all general purpose registers
     ret
 
-
-
-%define CHARSIZE   2        ; VGA characters are 2 bytes
-%define VGAWIDTH   80       ; Rows have 80 == 0xa0 slots
-%define VGAHEIGHT  25       ; Cols have 25 == 0x19 slots
 align 16
 clear_screen:
+    ; VGA charsize = 2, screen width = 80, screen height = 25
     mov         ebx,    0xb8000
     .clearslot:
-    cmp         ebx,    0xb8000 + (CHARSIZE)*(VGAWIDTH*VGAHEIGHT)
+    cmp         ebx,    0xb8000 + (2)*(80*25)
     jge         .done
     ; Even empty cells need grey foreground so we can always see the 
     ; cursor, even if it has been moved over an empty cell. Hence 0x0700
@@ -139,13 +140,14 @@ clear_screen:
     .done:      ret
 
 
+align 16
 DAP:
         db    0x10      ; size of this disk address packet (16)
         db    0         ; always zero
-sectrs: dw    10        ; number of sectors (blocks) to copy (1 works)
+sectrs: dw    20        ; number of sectors (blocks) to copy (1 works)
 dstloc: dw    SYSLOAD   ; where to copy the data (offset)
         dw    0x0000    ; where to copy the data (segment)
-srcloc: dd    2         ; starting LBA (starts at 0)
+srcloc: dd    4         ; starting LBA (starts at 0)
         dd    0         ; used for upper part of 48 bit LBAs
 
 initmsg:    db "JasonWnix is booting...", 0x00
@@ -153,4 +155,5 @@ drv:        db 0x00
 
 times 510-($-$$) db 0x00 ; pad remainder of boot sector with zeros
 dw 0xAA55                ; the standard pc boot signature
-times 512 db 0x00
+times 512  db 0x00
+times 1024 db 0x00
