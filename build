@@ -1,0 +1,31 @@
+#!/bin/bash
+
+die () {
+    printf "$1\n" && exit 1
+}
+
+osname=jasonwnix
+# osname=myfirstos
+
+# Remove the old shit
+rm -f *.bin *.flp *.iso
+
+# From asm to binary
+nasm -f bin -o "$osname.bin" "$osname.asm" || die "Assembly fucked up"
+
+# From binary to floppy
+dd status=noxfer conv=notrunc if="$osname.bin" of="$osname.flp" 
+
+# To make a bootable iso
+flpdir=cdiso
+rm -rf "$flpdir"
+mkdir -p "$flpdir" &&
+cp "$osname.flp" "$flpdir" &&
+mkisofs -no-emul-boot -boot-load-size 4 -input-charset=utf8 -o "$osname.iso" -b "$osname.flp" "$flpdir/" &&
+rm -rf "$flpdir"
+
+# Note: The "-singlestep" thing doesn't seem to matter
+qemu-system-i386 -singlestep -boot d -cdrom "$osname.iso"
+
+# This doesn't seem to matter either
+rm -f *.bin *.flp *.iso
