@@ -36,19 +36,20 @@ unsigned char upperkeys[] = {
  * interrupts working! Just have to set-up the IDT!!! */
 unsigned char keyboard_getkey(void)
 {
+    /* Can also remove final movb, and change last line to :"=a"(c):: */
     unsigned char c = 0;
-    asm ("waitforstatus:\n\t"
+    asm ("waitforstatus%=:\n\t"
         /* Read port 0x64, & check if low bit is 1 */
         "in   $0x64, %%al\n\t"
         "andb $0x01, %%al\n\t"
         "cmpb $0x01, %%al\n\t"
-        "jne  waitforstatus\n\t"
+        "jne  waitforstatus%=\n\t"
         /* Read keypress from port 0x60 */
         "in   $0x60, %%al\n\t"
-        "1: movb %%al, %0\n\t"
+        "movb %%al, %0\n\t"
         :"=r"(c)::"al"
     );
-    
+
     return c;
 }
 

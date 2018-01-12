@@ -6,16 +6,20 @@
 
 %define SYSLOAD     0x8000
 
+; Note: Despite having a GNU assembler name, this macro
+; still obeys the Intel sytax <cmd> <dst> <src> convention.
+; Also: This doesn't secretly clobber dx (I checked)
+%macro outb 2
+    push ax
+    mov al, %2  ; %2 = byte
+    out %1, al  ; %1 = port
+    pop  ax
+%endmacro
+
 section .text
 ; ====================== ;
 ; !!! PROTECTED MODE !!! ;
 ; ====================== ;
-
-%macro outb 2
-    mov dx, %0  ; %0 = port
-    mov al, %1  ; %1 = byte
-    out dx, al
-%endmacro
 
 USE32
 extern start_kernel
@@ -93,90 +97,71 @@ protectedmode:
     mov     edi, 0xb8000+0xa0   ; base address of vga memory map + 1 line
     call    printmsg
 
-    lidt [IDTR32]               ; load interrupt descriptor table (reg)
-
-    ; Set up interrupts!
-    mov edi, 0x69
-    mov esi, int_handler
-    call load_idt_entry
-    int 0x69
-
-    ; Calling sti after setting-up interrupts causes a double fault.
-    ; Apparently this is because a timer interrupt is being called.
-    ; A temporary fix for this is to set the timer interrupt to be
-    ; handled by a routine that does nothing. This prevents the crash.
-    ;mov edi, 0x08
-    ;mov esi, int_handler_null
-    ;call load_idt_entry
-
-    ; Either of these in isolation seems to work equally well
-    ; Weird: Also seems to work without either...
-    ; Maybe the problem is with the kbd controller?
-    outb 0x21, 0xfd    ; dst = port 0x21, src = byte 0xfd
-    outb 0xa1, 0xff    ; dst = port 0xa1, src = byte 0xff
-
-    call pic_remap
-
-    outb 0x21, 0xfd    ; dst = port 0x21, src = byte 0xfd
-    outb 0xa1, 0xff    ; dst = port 0xa1, src = byte 0xff
-
-    jmp a
-a:  jmp b
-b:  jmp c
-c:
-
-    ;mov ecx, 0x20
-    ;boops:
-    ;mov edi, ecx
-    ;mov esi, int_handler_null
-    ;call load_idt_entry
-    ;inc ecx
-    ;cmp ecx, 0x2f
-    ;jne boops
-
-    mov edi, 0x20
-    mov esi, int_handler_timer
-    call load_idt_entry
-
-    ; I AM getting keyboard interrupts, but something is clearing them!
-
-    ; I can only get keyboard interrupts *before* the timer interrupt
-    ; occurs! And it always occurs... and within a fraction of a second.
-    mov edi, 0x21
-    mov esi, int_handler_kbd
-    call load_idt_entry
-    cmp byte [0x21*8+5], 0x8e
-    jne halt
-
-    sti
-
-    jmp die
-
-    call start_kernel
-
     ; Now that you're here, you should relax and enjoy this article, 
     ; since it's almost certainly something you've encountered by now :)
     ; http://en.wikipedia.org/wiki/Triple_fault
 
-    jmp halt
+    ;============================;
+    ; Time to set-up interrupts! ;
+    ;============================;
 
-die:
-    times 10 db 0x90
-    jmp die
+    ; Load interrupt descriptor table register
+    lidt [IDTR32]
+
+    ; Set up and test a software interrupt
+    mov edi, 0x69
+    mov esi, int_handler_software
+    call load_idt_entry
+    int 0x69
+
+    ; Time for hardware interrupts!
+
+    ; Note: In each hardware interrupt handler, remember to
+    ; acknowledge the interrupt to the PIC. For interrupts from the
+    ; master PIC (i.e. IRQs 0-7), use outb 0x20, 0x20. For interrupts 
+    ; from the slave PIC (i.e. IRQs 8-15), use outb 0x20, 0x20 followed
+    ; by outb 0xa0, 0x20.
+
+    ; First, remap the PIC because IBM fucked up back in the dark ages...
+    call pic_remap
+
+    ; Masking certain hardware interrupts:
+    ; ====================================
+    ; Note: 0xff == 0b11111111 masks everything on a given PIC.
+    ; To unmask only IRQ0, set this to 0b11111110
+    ; To unmask only IRQ1, set this to 0b11111101
+    ; To unmask both IRQ0 & IRQ1, use: 0b11111100, etc.
+    outb    0x21, 0xfd      ; Mask all but IRQ1 (keyboard) on master PIC
+    outb    0xa1, 0xff      ; Mask all IRQs on slave PIC
+
+
+    ; Register an interrupt handler for the timer interrupt.
+    mov edi, 0x20
+    mov esi, int_handler_timer
+    call load_idt_entry
+
+    ; Register an interrupt handler for the keyboard interrupt.
+    mov edi, 0x21
+    mov esi, int_handler_kbd
+    call load_idt_entry
+
+    ; Go!
+    sti
+
+    call start_kernel
+
 
 halt:
     hlt
     jmp halt
 
-int_handler:
-    ;cli
+int_handler_software:
     pusha
     mov     ax,  0x0400         ; ah determines the fg and bg color
     mov     esi, idtmsg         ; the message to print
     mov     edi, 0xb8000+2*0xa0 ; base addr of vga memory map + 2 lines
     call    printmsg
     popa
-    ;sti
     iret
 
 int_handler_timer:
@@ -185,83 +170,37 @@ int_handler_timer:
 
     mov     ax,  0x0700
     mov     esi, timermsg
-    mov     edi, 0xb8000+0*0xa0
+    mov     edi, 0xb8000+4*0xa0
     add     edi, dword [LINE]
     add     dword [LINE], 0xa0
     call    printmsg
-    outb    0x20, 0x20      ; acknowledge the interrupt to the PIC
+
+    ; acknowledge the interrupt to the master PIC
+    outb    0x20, 0x20
+
     popa
     sti
-
-    int 0x21    ; Gotcha!
 
     iret
 
 
+extern terminal_handle_keyboard_input
 int_handler_kbd:
     cli
     pusha
 
+    call terminal_handle_keyboard_input
+    ; outb    0x61, 0x61    ; Doesn't seem to be necessary.
+    outb    0x20, 0x20      ; acknowledge interrupt to the master PIC
 
-    .waitforstatus:
-    ; Read port 0x64, & check if low bit is 1
-    in   al, 0x64
-    and  al, 0x01
-    cmp  al, 0x01
-    jne  .waitforstatus
-    ; Read keypress from port 0x60
-    in   al, 0x60   ; read information from the keyboard
-
-    ; The following 2 lines are from osdev, and are untested
-    mov     ax,  0x0600         ; ah determines the fg and bg color
-    mov     esi, kbdmsg         ; the message to print
-    mov     edi, 0xb8000+4*0xa0
-    add     edi, dword [LINE]
-    add     dword [LINE], 0xa0
-    call    printmsg
-
-    sti
-    outb    0x20, 0x20      ; acknowledge the interrupt to the PIC
-    popa
-    iret
-
-int_handler_kbd2:
-    cli
-    pusha
-    ; The following 2 lines are from osdev, and are untested
-    in      al, 0x60           ; read information from the keyboard
-    outb    0x20, 0x20      ; acknowledge the interrupt to the PIC
-    mov     ax,  0x0600         ; ah determines the fg and bg color
-    mov     esi, kbdmsg2         ; the message to print
-    mov     edi, 0xb8000+4*0xa0
-    add     edi, dword [LINE]
-    add     dword [LINE], 0xa0
-    call    printmsg
     popa
     sti
     iret
 
-int_handler_kbd3:
-    cli
-    pusha
-    ; The following 2 lines are from osdev, and are untested
-    in      al, 0x60           ; read information from the keyboard
-    outb    0x20, 0x20      ; acknowledge the interrupt to the PIC
-    mov     ax,  0x0600         ; ah determines the fg and bg color
-    mov     esi, kbdmsg3         ; the message to print
-    mov     edi, 0xb8000+4*0xa0
-    add     edi, dword [LINE]
-    add     dword [LINE], 0xa0
-    call    printmsg
-    popa
-    sti
-    iret
 
 int_handler_null:
     cli
-    pusha
-    popa
-    outb    0x20, 0x20      ; acknowledge the interrupt to the PIC
+    outb    0x20, 0x20      ; acknowledge interrupt to the master PIC
     sti
     iret
 
@@ -323,15 +262,14 @@ load_skeleton_idt_entry:
     pop eax
     ret
 
+
 section .data
-protmsg: db "Entered protected mode!", 0x00
-idtmsg:  db "Protected mode software interrupts are working!", 0x00
-kbdmsg:  db "Keyboard interrupt handler 1 called", 0x00
-kbdmsg2: db "Keyboard interrupt handler 2 called", 0x00
-kbdmsg3: db "Keyboard interrupt handler 3 called", 0x00
-timermsg: db "Timer interrupt called", 0x00
-linkmsg: db "Successfully linked with C!", 0x00
-LINE:    dd 0x00000000
+protmsg:    db "Entered protected mode!", 0x00
+idtmsg:     db "Protected mode interrupts are working!", 0x00
+kbdmsg:     db "Keyboard interrupt handler called", 0x00
+timermsg:   db "Timer interrupt handler called", 0x00
+linkmsg:    db "Successfully linked with C!", 0x00
+LINE:       dd 0x00000000
 ; The interrupt descriptor table *register*
 ; ======================================
 
@@ -392,3 +330,24 @@ idt_entry_skeleton:
     db 0x8e     ; type and attributes (see above)
     dw 0x0000   ; offset bits 16..31 (high bits of handler's address)
 
+
+
+; OLD STUFF TO REMOVE ;
+
+; From keyboard interrupt handler
+
+;.waitforstatus:
+; Read port 0x64, & check if low bit is 1
+;in   al, 0x64
+;and  al, 0x01
+;cmp  al, 0x01
+;jne  .waitforstatus
+;in   al, 0x60   ; Read scancode from port 0x60
+
+; Print a message to the screen
+;mov     ax,  0x0600         ; ah determines the fg and bg color
+;mov     esi, kbdmsg         ; the message to print
+;mov     edi, 0xb8000+4*0xa0
+;add     edi, dword [LINE]
+;add     dword [LINE], 0xa0
+;call    printmsg

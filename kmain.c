@@ -13,9 +13,8 @@ void start_kernel(void)
     cursor_init();
     print_init_msg();
 
-    while (1) {
-        terminal_handle_keyboard_input();
-    }
+    /* Idle loop. Stop CPU until next interrupt. */
+    while (1) asm("hlt\n");
 }
 
 
@@ -54,14 +53,6 @@ static inline u8 inb(u16 port)
     return ret;
 }
 
-static inline void io_wait(void)
-{
-    /* This is probably fragile. */
-    asm volatile ( "jmp   1f\n\t"
-                   "1:jmp 2f\n\t"
-                   "2:" );
-}
-
 /*
  * offset1 - vector offset for master PIC
  *           vectors on the master become offset1 ... offset1 + 7
@@ -83,47 +74,41 @@ void pic_remap()
     * 0..0xF -> INT 0x20..0x2F). For that, we need to set the master
     * PIC's offset to 0x20 and the slave's to 0x28.
     */
-    int offset1 = 0x20;
-    int offset2 = 0x28;
 
-    unsigned char a1, a2;
- 
-    a1 = inb(PIC1_DATA);                        // save masks
+    int pic1_offset = 0x20;     // Master PIC will have IRQs 0x20-0x27
+    int pic2_offset = 0x28;     // Slave  PIC will have IRQs 0x28-0x2f
+
+    unsigned char a1, a2; 
+    a1 = inb(PIC1_DATA);        // Save master's interrupt mask
     a2 = inb(PIC2_DATA);
  
     // starts the initialization sequence (in cascade mode)
-    outb(PIC1_CMD, ICW1_INIT + ICW1_ICW4);
-    io_wait();
+    outb(PIC1_CMD, ICW1_INIT + ICW1_ICW4); // Data = 0x11. 0x10 works too
     outb(PIC2_CMD, ICW1_INIT + ICW1_ICW4);
-    io_wait();
 
     // ICW2: Master PIC vector offset
-    outb(PIC1_DATA, offset1);
-    io_wait();
+    outb(PIC1_DATA, pic1_offset);
 
     // ICW2: Slave PIC vector offset
-    outb(PIC2_DATA, offset2);
-    io_wait();
+    outb(PIC2_DATA, pic2_offset);
 
-    // ICW3: tell Master PIC that there's a slave PIC at IRQ2 (0000 0100)
+    // ICW3: tell Master PIC there's a slave PIC at IRQ2 (0b00000100 = 4)
     outb(PIC1_DATA, 0b00000100);
-    io_wait();
 
-    // ICW3: tell Slave PIC its cascade identity (0000 0010, or 2)
+    // ICW3: tell Slave PIC its cascade identity (0b00000010 = 2)
     outb(PIC2_DATA, 0b00000010);
-    io_wait();
  
+    // ICW4: Seems to work equally well without these.
     outb(PIC1_DATA, ICW4_8086);
-    io_wait();
     outb(PIC2_DATA, ICW4_8086);
-    io_wait();
  
-    outb(PIC1_DATA, a1);   // restore saved masks.
+    // Put the interrupt masks back how they were when we started.
+    outb(PIC1_DATA, a1);
     outb(PIC2_DATA, a2);
 }
 
 /* Here's how Linus did the above in Linux 0.01 
-   This is identical to what we're dong above.
+   This is identical to what we're doing above.
 
     mov     al, 0x11        ; initialization sequence
     out     0x20, al        ; send it to 8259A-1
@@ -149,33 +134,4 @@ void pic_remap()
     out     0x21, al
     out     0xA1, al
 */
-
-/* Here's how Linus set up interrupts
-
-#define _set_gate(gate_addr,type,dpl,addr) \
-__asm__ ("movw %%dx,%%ax\n\t" \
-    "movw %0,%%dx\n\t" \
-    "movl %%eax,%1\n\t" \
-    "movl %%edx,%2" \
-    :
-    : "i" ((short) (0x8000+(dpl<<13)+(type<<8))), \
-    "o" (*((char *) (gate_addr))), \
-    "o" (*(4+(char *) (gate_addr))), \
-    "d" ((char *) (addr)),"a" (0x00080000))
-
-#define set_intr_gate(n,addr) \
-    _set_gate(&idt[n],14,0,addr)
-
-#define set_trap_gate(n,addr) \
-    _set_gate(&idt[n],15,0,addr)
-*/
-
-#define PIC_EOI        0x20        /* End-of-interrupt command code */
-void pic_send_eoi(unsigned char irq)
-{
-    if(irq >= 8)
-        outb(PIC2_CMD,PIC_EOI);
- 
-    outb(PIC1_CMD,PIC_EOI);
-}
 
