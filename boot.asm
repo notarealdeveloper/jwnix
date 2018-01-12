@@ -18,12 +18,12 @@ align 16
 start:
     cli
     xor eax, eax
-    xor ebx, ebx
-    xor ecx, ecx
-    xor esi, esi
-    xor edi, edi
-    xor ebp, ebp
-    xor esp, esp
+    ;xor ebx, ebx
+    ;xor ecx, ecx
+    ;xor esi, esi
+    ;xor edi, edi
+    ;xor ebp, ebp
+    ;xor esp, esp
     mov ds,  ax
     mov es,  ax
     mov fs,  ax
@@ -67,13 +67,28 @@ start:
     ; Now we want to load stage two at SYSLOAD 
     ; Note: For real hardware, we may have to do this multiple times!
     ; ========================================
+    mov di, 3
+    lba_loader:
     mov si, DAP         ; address of "disk address packet"
     mov ah, 0x42        ; ah = BIOS call number for this int 0x13 call
-    mov dl, byte [drv]  ; dl = drive type (0x80 for HDs, etc.)
-    int 0x13
 
-    mov ebx, 0xb8000 + 8*0xa0
-    mov dword [ebx], (0x0700+"3")
+    .lba_try_bios_dl:
+    mov dl, byte [drv]              ; dl = drive number. Typically 0x80
+    cmp di, 2
+    jne .lba_use_default_dl
+    mov dl, 0x80                    ; Try 0x80, instead of what BIOS gave us
+    .lba_use_default_dl:
+
+    int 0x13
+    ; Check that the loading went as expected
+    cmp dword [SYSLOAD], 0x31c031fa ; First four bytes of the kernel
+    je  loading_worked              ; If it worked, we're done
+    dec di                          ; ...otherwise keep trying
+    cmp di, 0                       ; ...until we fail 3 times
+    jne lba_loader                  ; ...then fall through to chs loader
+
+    mov ebx, 0xb8000 + 10*0xa0 + (2)*(1)
+    mov dword [ebx], (0x0700+"F")
 
 
     ; Now we want to load stage two at SYSLOAD
@@ -94,27 +109,42 @@ start:
     ; DH = Head number
     ; DL = Drive number. For hard disks, this = 1<<7 = 0b10000000 = 0x80
     ; ES:BX -> data buffer
-
     mov di, 3
-    a:
+    chs_loader:
     mov bx, SYSLOAD                 ; es:bx == 0x0000:bx -> buffer
-    mov ah, 0x02
+    mov ah, 0x02                    ; int 0x13 sub-subroutine number
     mov al, 0x10                    ; al = total sector count
     mov ch, 0x00                    ; ch: cylinder & 0xff
     mov cl, 0x03 | ((0>>2)&0xc0)    ; cl: sector | ((cylinder>>2)&0xc0)
     mov dh, 0x00                    ; dh: head
+
+    .chs_try_bios_dl:
     mov dl, byte [drv]              ; dl = drive number. Typically 0x80
+    cmp di, 2
+    jne .chs_use_default_dl
+    mov dl, 0x80                    ; Try 0x80, instead of what BIOS gave us
+    .chs_use_default_dl:
+
     int 0x13
+    cmp dword [SYSLOAD], 0x31c031fa ; First four bytes of the kernel
+    je  loading_worked
     dec di
     cmp di, 0
-    jne a
+    jne chs_loader
 
-    mov ebx, 0xb8000 + 9*0xa0
-    mov dword [ebx], (0x0700+"4")
 
-    ; Check that the loading went as expected
-    ;cmp dword [SYSLOAD], 0x31c031fa ; First four bytes of the kernel
-    ;jne loading_is_fucked
+
+    loading_failed:
+    mov ebx, 0xb8000 + 10*0xa0 + (2)*(2)
+    mov dword [ebx], (0x0700+"F")
+    jmp halt
+
+    loading_worked:
+
+
+    mov ebx, 0xb8000 + 8*0xa0
+    mov dword [ebx], (0x0700+"3")
+
 
     ; Time for protected mode!
     ; ========================
@@ -128,8 +158,11 @@ start:
     or  eax, 0x01           ; set protected mode (PE) bit
     mov cr0, eax            ; ready... set...
 
-    mov ebx, 0xb8000 + 10*0xa0
-    mov dword [ebx], (0x0700+"5")
+
+    mov ebx, 0xb8000 + 9*0xa0
+    mov dword [ebx], (0x0700+"4")
+    ; mov ebx, 0xb8000 + 10*0xa0
+    ; mov dword [ebx], (0x0700+"5")
 
     ; This will reload cs with the value 0x0008.
     jmp 0x0008:SYSLOAD    ; go!
@@ -138,17 +171,17 @@ start:
 %include "boot/gdt.asm"
 ;%include "boot/real-mode-interrupts.asm"
 
-align 16
-loading_is_fucked:
-    mov ebx, 0xb8000 + 11*0xa0
-    mov dword [ebx], (0x0700+"F")
-    mov esi, loadfail
-    mov edi, 0xb8000
-    call printmsg
-    sti
-    hlt
-    cli
-    jmp loading_is_fucked
+;align 16
+;loading_is_fucked:
+;    mov ebx, 0xb8000 + 11*0xa0
+;    mov dword [ebx], (0x0700+"F")
+;    mov esi, loadfail
+;    mov edi, 0xb8000
+;    call printmsg
+;    sti
+;    hlt
+;    cli
+;    jmp loading_is_fucked
 
 
 align 16
@@ -167,6 +200,13 @@ printmsg:
     popa                ; pop all general purpose registers
     ret
 
+halt:
+    mov     ax,  0x0200                     ; ah determines fg & bg color
+    mov     esi, somefuck                   ; move initmsg into si
+    mov     edi, 0xb8000+0xa0               ; first line of vga memory
+    call    printmsg                        ; and print it.
+    hlt
+    jmp halt
 
 %define CHARSIZE   2        ; VGA characters are 2 bytes
 %define VGAWIDTH   80       ; Rows have 80 == 0xa0 slots
@@ -198,6 +238,7 @@ srcloc: dd    2         ; starting LBA (starts at 0)
 align 16
 initmsg:    db "JasonWnix is booting...", 0x00
 loadfail:   db "Magic fucked up...", 0x00
+somefuck:   db "Something fucked up", 0x00
 drv:        db 0x00
 
 times 510-($-$$) db 0x00 ; pad remainder of boot sector with zeros

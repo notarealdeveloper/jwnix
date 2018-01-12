@@ -60,4 +60,4 @@ flpboot
 # isoboot
 # debugrun
 
-# make -s clean
+make -s clean

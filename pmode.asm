@@ -90,7 +90,7 @@ protectedmode:
     mov ss, eax
     mov esp, 0x7c00             ; Set a known free location for the stack
 
-    mov ebx, 0xb8000 + 11*0xa0
+    mov ebx, 0xb8000 + 10*0xa0
     mov dword [ebx], (0x0700+"P")
 
     mov     ax, 0x0300          ; ah determines the fg and bg color
