@@ -18,7 +18,7 @@ isoboot () {
     rm -rf "$isodir"
 
     # Boot the iso
-    qemu-system-i386 -boot d -cdrom "$osname.iso"
+    qemu-system-x86_64 -boot d -cdrom "$osname.iso"
     rm -f "$osname.iso" "$isodir"
 }
 
@@ -27,7 +27,7 @@ flpboot () {
     # dd if="$osname.bin" of="$osname.flp" bs=512
     # qemu-system-i386 -fda "$osname.bin"   # For more contraints ;)
     # Note: The floppy is idential to the binary so no extra dd step.
-    qemu-system-i386 "$osname"  # Original gangsta
+    qemu-system-x86_64 "$osname"  # Original gangsta
 }
 
 
@@ -35,4 +35,4 @@ rm -f *.bin *.flp *.iso
 make
 # isoboot
 flpboot
-make clean
+# make clean
