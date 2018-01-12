@@ -28,4 +28,4 @@ rm -rf "$flpdir"
 qemu-system-i386 -singlestep -boot d -cdrom "$osname.iso"
 
 # This doesn't seem to matter either
-rm -f *.bin *.flp *.iso
+#rm -f *.bin *.flp *.iso
