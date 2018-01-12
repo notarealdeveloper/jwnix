@@ -50,6 +50,8 @@ void terminal_set_bg_color(char bg);
 void terminal_initialize();
 void terminal_putentryat(u8 c, u32 x, u32 y);
 void terminal_putchar(u8 c);
+void terminal_print_byte(u8  c);
+void terminal_print_word(u16 c);
 void terminal_writestring(const char *str);
 unsigned char terminal_handle_keyboard_input(void);
 

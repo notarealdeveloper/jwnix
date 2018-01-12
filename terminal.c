@@ -1,6 +1,7 @@
 #include "terminal.h"
 #include "keyboard.h"
 #include "string.h"
+#include "types.h"
 
 /* Begin cursor functions */
 #define CHARSIZE    2
@@ -113,6 +114,41 @@ void terminal_writestring(const char *str)
     u32 i, len = strlen(str);
     for (i = 0; i < len; i++)
         terminal_putchar(str[i]);
+}
+
+void _terminal_print_byte(u8 c)
+{
+    u8 nybble1   = (c & 0x0f);
+    u8 nybble2   = (c & 0xf0) >> 4;
+    u8 bytes[16] = {'0','1','2','3','4','5','6','7',
+                    '8','9','a','b','c','d','e','f'};
+    char hexstr[6] = {'0', 'x', bytes[nybble2], bytes[nybble1], ' ', 0};
+
+    terminal_writestring(hexstr);
+}
+
+void terminal_print_byte(u8 c)
+{
+    u8 nybble1   = (c & 0x0f);
+    u8 nybble2   = (c & 0xf0) >> 4;
+    u8 bytes[16] = {'0','1','2','3','4','5','6','7',
+                    '8','9','a','b','c','d','e','f'};
+    char hexstr[6] = {'0', 'x', bytes[nybble2], bytes[nybble1], ' ', 0};
+
+    terminal_writestring(hexstr);
+}
+
+void terminal_print_word(u16 c)
+{
+    u8 nybble1   = (c & 0x000f);
+    u8 nybble2   = (c & 0x00f0) >> 4;
+    u8 nybble3   = (c & 0x0f00) >> 8;
+    u8 nybble4   = (c & 0xf000) >> 12;
+    u8 bytes[16] = {'0','1','2','3','4','5','6','7',
+                    '8','9','a','b','c','d','e','f'};
+    char hexstr[8] = {'0', 'x', bytes[nybble4], bytes[nybble3], 
+                                bytes[nybble2], bytes[nybble1], ' ', 0};
+    terminal_writestring(hexstr);
 }
 
 
