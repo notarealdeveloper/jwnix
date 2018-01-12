@@ -8,15 +8,16 @@
 %define CHARSIZE   2        ; VGA characters are 2 bytes
 %define VGAWIDTH   80       ; Rows have 80 == 0xa0 slots
 %define VGAHEIGHT  25       ; Cols have 25 == 0x19 slots
+%define PAGESIZE   0x1000   ; The page size: 4092 (not yet used)
 
 
+section .text
+global _start
+_start:
 from_space:
     call    cursor_init
     call    print_init_msg
-
-    ;call    clear_screen
     call    cursor_init
-
     call    cursor_down
 
     jmp die
@@ -33,7 +34,6 @@ clear_screen:
     add         ebx,    2
     jmp         .clearslot
     .done:      ret
-
 
 
 cursor_init:
@@ -101,12 +101,7 @@ print_init_msg:
     pop eax
     ret
 
+; According to hexdump, this is placed at the bottom anyway, 
+; below the text section, even if we put it at the top.
+section .data
 initmsg: db "Entered stage two...", 0x00
-
-
-; Write a VGA entry
-; =================
-; mov ax, 0x0200+"X" ; Format of VGA entry is bg-nybl, fg-nybl, char
-; mov bx, 0xb000
-; mov gs, bx
-; mov word [gs:0x8000], ax
