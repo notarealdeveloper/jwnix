@@ -4,8 +4,6 @@
 ; The bootloader then executes a far jump to 0x1000:0x0000, which jumps
 ; into this file's code.
 
-%define SYSLOAD     0x8000
-
 ; Note: Despite having a GNU assembler name, this macro
 ; still obeys the Intel sytax <cmd> <dst> <src> convention.
 ; Also: This doesn't secretly clobber dx (I checked)
@@ -90,7 +88,12 @@ protectedmode:
     mov fs, eax
     mov gs, eax
     mov ss, eax
-    mov esp, SYSLOAD    ; Set a known free location for the stack
+    mov esp, 0x7c00             ; Set a known free location for the stack
+
+    ; Previously, we had this. 
+    ; However, I'm trying to minimize dependencies on SYSLOAD
+    ; %define SYSLOAD  0x8400
+    ; mov esp, SYSLOAD
 
     mov     ax, 0x0300          ; ah determines the fg and bg color
     mov     esi, protmsg        ; the message to print
@@ -234,30 +237,25 @@ load_idt_entry:
 
     ; Register our interrupt handler
     ; If we're setting (say) int 0x20, this is mov word [0x20*8], si
-    mov word [edi*8+0], si
+    mov word [idt + edi*8 + 0], si
 
     ; The following two lines set offset bits 16..31 of the idt entry.
-    ; This isn't currently necessary, presumably because we're still low
-    ; enough in RAM that those bits *are* actually zero.
-    ; However, we may move in the future, so lets set-up the high bits
-    ; anyway. Keep in mind that I haven't tested this yet, so I'm
-    ; not 100% sure the following two lines do the right thing.
-    ; They almost certainly do, though.
+    ; Doesn't seem to be needed yet, but should be in the future.
     shr esi, 16
-    mov word [edi*8+6], si
+    mov word [idt + edi*8 + 6], si
 
     pop esi
     ret
 
 load_skeleton_idt_entry:
     push eax
-    mov dword eax,        [idt_entry_skeleton]
-    mov dword [edi*8+0], eax
-    mov dword eax,        [idt_entry_skeleton+4]
-    mov dword [edi*8+4], eax
+    mov dword eax,                  [idt_entry_skeleton + 0]
+    mov dword [idt + edi*8 + 0],    eax
+    mov dword eax,                  [idt_entry_skeleton + 4]
+    mov dword [idt + edi*8 + 4],    eax
 
     ; Check that we loaded the skeleton idt entry correctly
-    cmp byte  [edi*8+5], 0x8e
+    cmp byte  [idt + edi*8 + 5],    0x8e
     jne halt
     pop eax
     ret
@@ -275,10 +273,23 @@ LINE:       dd 0x00000000
 
 align 32
 IDTR32:                         ; interrupt descriptor table register
-dw (0x100 * 8) - 1              ; limit of IDT (0x100 interrupts)
-dd 0x00000000                   ; linear address of IDT
-;dd idt32beg                    ; linear address of IDT
+dw (idt32end - idt32beg) - 1    ; limit of the IDT
+dd idt32beg                     ; linear address of IDT
 
+align 32
+idt_entry_skeleton:
+    ; Skeleton interrupt descriptor table entry
+    dw 0x0000   ; offset bits 0..15 (low bits of handler's address)
+    dw 0x0008   ; a code segment selector in GDT or LDT (ours in 0x0008)
+    db 0x00     ; unused: set to zero
+    db 0x8e     ; type and attributes (see above)
+    dw 0x0000   ; offset bits 16..31 (high bits of handler's address)
+
+section .bss
+align 32
+idt32beg:
+idt:    resb 0x100 * 8          ; 0x100 interrupts for now
+idt32end:
 
 ; The interrupt descriptor table itself
 ; ==================================
@@ -321,14 +332,6 @@ dd 0x00000000                   ; linear address of IDT
 ; after setting the PM bit in cr0.
 
 
-align 32
-idt_entry_skeleton:
-    ; Skeleton interrupt descriptor table entry
-    dw 0x0000   ; offset bits 0..15 (low bits of handler's address)
-    dw 0x0008   ; a code segment selector in GDT or LDT (ours in 0x0008)
-    db 0x00     ; unused: set to zero
-    db 0x8e     ; type and attributes (see above)
-    dw 0x0000   ; offset bits 16..31 (high bits of handler's address)
 
 
 

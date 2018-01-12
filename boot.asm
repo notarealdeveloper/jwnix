@@ -11,7 +11,7 @@ ORG     0x7c00              ; This makes life *so* much easier!!!
 BITS    16
 
 ; Note: If you modify this, remember to modify it in stage two as well.
-%define SYSLOAD 0x8000      ; where we'll load the rest of the system
+%define SYSLOAD 0x8400      ; where we'll load the rest of the system
 
 
 ; jump over the includes
@@ -21,6 +21,7 @@ jmp start
 
 align 16
 start:
+    cli
     xor eax, eax
     xor ebx, ebx
     xor ecx, ecx
@@ -84,10 +85,10 @@ start:
 DAP:
         db    0x10      ; size of this disk address packet (16)
         db    0         ; always zero
-sectrs: dw    16        ; number of sectors (blocks) to copy (1 works)
+sectrs: dw    32        ; number of sectors (blocks) to copy (1 works)
 dstloc: dw    SYSLOAD   ; where to copy the data (offset)
         dw    0x0000    ; where to copy the data (segment)
-srcloc: dd    2         ; starting LBA (starts at 0. 2 makes iso happy)
+srcloc: dd    4         ; starting LBA (starts at 0. 2 makes iso happy)
         dd    0         ; used for upper part of 48 bit LBAs
 
 
@@ -134,4 +135,4 @@ clear_screen:
 
 times 510-($-$$) db 0x00 ; pad remainder of boot sector with zeros
 dw 0xAA55                ; the standard pc boot signature
-times 512 db 0x00
+times 2048-512 db 0x00

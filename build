@@ -7,23 +7,57 @@ die () {
 }
 
 isoboot () {
-    # Note: The 512 byte bootsector limit doesn't seem to apply to the iso,
+    # The 512 byte bootsector limit doesn't seem to apply to the iso,
     # but we'll obey it anyway so floppy and iso work equally well.
+    # Note: -hard-disk-boot doesn't currently work
+    # -boot-load-size n doesn't work like I'd expect...
     isodir=isodir
+
+    # I think the problems with the iso may arise from the fact
+    # that we're the jasonwnix file shows up twice in the steps
+    # we use to make an iso. We put it in the directory, and then
+    # also pass it to the -b option. This can't be right...
     rm -rf "$isodir" && mkdir -p "$isodir" && cp "$osname" "$isodir" &&
-    mkisofs -no-emul-boot -input-charset=utf8 \
-        -o "$osname.iso" -b "$osname" "$isodir/"
-    qemu-system-x86_64 -cdrom "$osname.iso"
+    mkisofs -no-emul-boot -o "$osname.iso" -b "$osname" "$isodir/"
+    qemu-system-x86_64 -cdrom "$osname.iso" "${DBG[@]}"
+    # cp "$osname.iso" ~/Desktop
     rm -rf "$osname.iso" "$isodir"
 }
 
 flpboot () {
-    qemu-system-x86_64 "$osname"
+    qemu-system-x86_64 "$osname" "${DBG[@]}"
 }
 
+dumpmem () {
+    logfile="/tmp/log"
+    sleep 0.3 && 
+    gdb -batch -x gdb-script | grep '^0x.*:' &>>"$logfile" &&
+    killall qemu-system-x86_64
+}
+
+debugrun () {
+    DBG=(-S -s)
+    logfile="/tmp/log"
+
+    flpboot &
+    echo "Flp" >> "$logfile"
+    dumpmem
+    echo >> "$logfile"
+
+    isoboot &
+    echo "Iso" >> "$logfile"
+    dumpmem
+
+    clear
+    cat "$logfile"
+    rm -f "$logfile"
+}
 
 rm -f *.bin *.flp *.iso
 make
-isoboot
+
 flpboot
-make clean
+isoboot
+# debugrun
+
+make -s clean
