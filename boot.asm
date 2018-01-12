@@ -29,20 +29,12 @@ align 16
 start:
     cli
     xor eax, eax
-    ;xor ebx, ebx
-    ;xor ecx, ecx
-    ;xor esi, esi
-    ;xor edi, edi
-    ;xor ebp, ebp
-    ;xor esp, esp
     mov ds,  ax
     mov es,  ax
     mov fs,  ax
     mov gs,  ax
     mov ss,  ax
 
-    ; mov ebx, 0xb8000 + 5*0xa0
-    ; mov dword [ebx], (0x0700+"0")
 
     ; The BIOS hands us the type of the boot drive in dl. Save it!
     mov byte [drv], dl                      ; save the drive number
@@ -54,17 +46,40 @@ start:
     call    fill_interrupt_vector_table
     call    test_real_mode_interrupts
 
-    ;wait    0x00100000
+    ; ==================================================
+    ; Time to play chicken with the hardware!
+    ; We want to load stage two at SYSLOAD, but hardware
+    ; sucks, so we'll just hammer on it until it works.
+    ; ==================================================
 
+    fighttothedeath:
+    ; While we're here, try an init message
     mov     ax,  0x0200                     ; ah determines fg & bg color
     mov     esi, initmsg                    ; move initmsg into si
     mov     edi, 0xb8000                    ; first line of vga memory
     call    printmsg                        ; and print it.
 
+    ; Try loading stage two using the disk number we got from the BIOS
+    mov si, DAP         ; address of "disk address packet"
+    mov ah, 0x42        ; ah = BIOS call number for this int 0x13 call
+    mov dl, byte [drv]  ; dl = drive number. Typically 0x80
+    int 0x13
+    cmp dword [SYSLOAD], 0x31c031fa
+    je freedom
 
-    call    prinfinite
-    holyfuck:
+    ; Same as above, but trying 0x80, instead of number from BIOS
+    mov si, DAP
+    mov ah, 0x42
+    mov dl, 0x80
+    int 0x13
+    cmp dword [SYSLOAD], 0x31c031fa
+    je freedom
 
+    wait 0x1000
+    jmp fighttothedeath
+    ; ==================================================
+
+    freedom:
 
     ; Time for protected mode!
     ; ========================
@@ -104,30 +119,7 @@ printmsg:
     popa                ; pop all general purpose registers
     ret
 
-prinfinite:
-    mov     ax,  0x0200                     ; ah determines fg & bg color
-    mov     esi, infinite                   ; move initmsg into si
-    mov     edi, 0xb8000+0xa0               ; first line of vga memory
-    call    printmsg                        ; and print it.
-    wait    0x1000
 
-    ; Now we want to load stage two at SYSLOAD 
-    ; Note: For real hardware, we may have to do this multiple times!
-    ; ========================================
-    mov si, DAP         ; address of "disk address packet"
-    mov ah, 0x42        ; ah = BIOS call number for this int 0x13 call
-    mov dl, byte [drv]  ; dl = drive number. Typically 0x80
-    int 0x13
-    cmp dword [SYSLOAD], 0x31c031fa
-    je holyfuck
-    mov si, DAP         ; address of "disk address packet"
-    mov ah, 0x42        ; ah = BIOS call number for this int 0x13 call
-    mov dl, 0x80        ; Try 0x80, instead of num from BIOS
-    int 0x13
-    cmp dword [SYSLOAD], 0x31c031fa
-    je holyfuck
-
-    jmp prinfinite
 
 %define CHARSIZE   2        ; VGA characters are 2 bytes
 %define VGAWIDTH   80       ; Rows have 80 == 0xa0 slots
@@ -156,10 +148,7 @@ dstloc: dw    SYSLOAD   ; where to copy the data (offset)
 srcloc: dd    2         ; starting LBA (starts at 0)
         dd    0         ; used for upper part of 48 bit LBAs
 
-align 16
 initmsg:    db "JasonWnix is booting...", 0x00
-loadfail:   db "Magic fucked up...", 0x00
-infinite:   db "We're here forever, yo!!!", 0x00
 drv:        db 0x00
 
 times 510-($-$$) db 0x00 ; pad remainder of boot sector with zeros
