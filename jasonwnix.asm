@@ -77,8 +77,6 @@ BITS    16
 
 %define INIT        0x7c00  ; where the bios loads our code
 %define PAGESIZE    0x1000  ; The page size: 4092
-%define MBRSIZE     0x0200  ; The size of our boot sector: 512
-%define IDT         0x5000
 
 %define CHARSIZE   2        ; VGA characters are 2 bytes
 %define VGAWIDTH   80       ; Rows have 80 == 0xa0 slots
@@ -90,16 +88,16 @@ align 16
 start:
     cli                                     ; disable hardware interrupts
     mov sp, 0x7c00 + 0x1000 + 0x200         ; set up the stack segment
-
-    ;clear_all_registers
+    clear_all_registers
     call    clear_screen
     call    cursor_init
+    call    cursor_right
 
     mov dword    [0x06*4],   INIT + invalid_opcode
     mov dword    [0x69*4],   INIT + handler
 
-    int 0x69        ; Interrupt 0x69:
-    int 0x69        ; Interrupt 0x69:
+    int 0x69        ; Interrupt 0x69
+    int 0x69        ; Interrupt 0x69
 
 
     mov ebx, 0xb80a0
@@ -113,7 +111,78 @@ start:
     call cursor_down
     call cursor_down
 
+    ; This is just to verify that BIOS calls are still working!
+    ; move the cursor to (row = 3, col = 0)
+    mov     ah, 0x02
+    xor     bx, bx
+    mov     dx, 0x0300
+    int     0x10
+    ; print an "X" there
+    mov     al, "X"
+    mov     ah, 0x0e
+    int     0x10
+
+    ; Now we want to load stage two at 0x10000
+
+    ; We'll use Logical Block Addressing, although we got CHS working too
+    ; Reading sectors from the disk using Logical Block Addressing
+    ; Reading 16 sectors from LBA 1 to physical address 0x10000
+    mov bx, 0x0000      ; our data segment
+    mov ds, bx
+    mov si, INIT+DAP    ; address of "disk address packet"
+    mov ah, 0x42        ; ah = BIOS call number for this int 0x13 call
+    mov dl, 0x80        ; dl = "drive number." Typically 0x80
+    int 0x13
+
+    jmp 0x1000:0x0000
+
     jmp die
+
+DAP:
+        db    0x10      ; size of this disk address packet (16)
+        db    0         ; always zero
+sectrs: dw    16        ; number of sectors (blocks) to copy (1 works)
+dstloc: dw    0x0000    ; where to copy the data (offset)
+        dw    0x1000    ; where to copy the data (segment)
+srcloc: dd    1         ; starting LBA (starts at 0, so do 1. 0 flashes!)
+        dd    0         ; used for upper part of 48 bit LBAs
+
+    jmp die
+
+
+
+    ; Cylinder = 0 to 1023 (maybe 4095)
+    ; Head = 0 to 15 (maybe 254, maybe 255)
+    ; Sector = 1 to 63
+
+    ; From the good old RBL ;-)
+    ; =========================
+    ; AH = 02h
+    ; AL = Number of sectors to read (must be nonzero, and < 128)
+    ;      Can't cross a page boundary, or a cylinder boundary
+    ; CH = Low eight bits of cylinder number
+    ; CL = Sector number 1-63 (bits 0-5)
+    ;      High two bits of cylinder (bits 6-7, hard disk only)
+    ; DH = Head number
+    ; DL = Drive number. For hard disks, this = 1<<7 = 0b10000000 = 0x80
+    ; ES:BX -> data buffer
+
+    ; Set up the data buffer
+    mov bx, 0x0000                  ; es:bx -> buffer
+    mov ax, 0x1000
+    mov es, ax
+
+    mov ah, 0x02
+    mov al, 1                       ; al = total sector count
+    mov ch, 0x00                    ; ch: cylinder & 0xff
+    mov cl, 0x02 | ((0>>2)&0xc0)    ; cl: sector | ((cylinder>>2)&0xC0)
+    mov dh, 0x00                    ; dh: head
+
+    mov dl, 0x80                    ; dl = "drive number." Typically 0x80
+
+    int 0x13
+
+    jmp 0x1000:0x0000
 
 ; Note: add 0xa0 to get to the next row
 align 16
@@ -230,3 +299,4 @@ redraw_cursor:
 
 times 510-($-$$) db 0x00 ; pad remainder of boot sector with zeros
 dw 0xAA55                ; the standard pc boot signature
+

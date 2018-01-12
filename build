@@ -29,7 +29,10 @@ flpboot () {
     # qemu-system-i386 -fda "$osname.bin"   # For more contraints ;)
     # Note: The "floppy" is idential to the binary,
     # so we don't need an extra dd step.
-    qemu-system-i386 "$osname.bin"  # Original gangsta
+    nasm -f bin -o "stagetwo" "stagetwo.asm"
+    cat "$osname.bin" "stagetwo" > "$osname"
+    qemu-system-i386 "$osname"  # Original gangsta
+    rm -f "$osname.bin" "stagetwo" # "$osname"
 }
 
 
