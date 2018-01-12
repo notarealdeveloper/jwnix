@@ -45,7 +45,7 @@ start:
 
     ; The BIOS hands us the type of the boot drive in dl. Save it!
     mov byte [drv], dl                      ; save the drive number
-	mov     sp, 0x7c00                      ; set up the stack segment
+    mov     sp, 0x7c00                      ; set up the stack segment
 
     call    clear_screen                    ; kill bios boot messages
 
