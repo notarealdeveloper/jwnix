@@ -12,14 +12,14 @@ isoboot () {
     isodir=isodir
     rm -rf "$isodir"
     mkdir -p "$isodir" &&
-    cp "$osname.bin" "$isodir" &&
+    cp "$osname" "$isodir" &&
     mkisofs -no-emul-boot -input-charset=utf8 \
-            -o "$osname.iso" -b "$osname.bin" "$isodir/"
+        -o "$osname.iso" -b "$osname" "$isodir/"
     rm -rf "$isodir"
 
     # Boot the iso
     # qemu-system-i386 -boot d -cdrom "$osname.iso"
-    qemu-system-i386 -cdrom "$osname.iso"
+    qemu-system-i386 -boot d -cdrom "$osname.iso"
     rm -f "$osname.iso" "$isodir"
 }
 
@@ -29,8 +29,6 @@ flpboot () {
     # qemu-system-i386 -fda "$osname.bin"   # For more contraints ;)
     # Note: The "floppy" is idential to the binary,
     # so we don't need an extra dd step.
-    nasm -f bin -o "stagetwo" "stagetwo.asm"
-    cat "$osname.bin" "stagetwo" > "$osname"
     qemu-system-i386 "$osname"  # Original gangsta
     rm -f "$osname.bin" "stagetwo" # "$osname"
 }
@@ -38,6 +36,8 @@ flpboot () {
 
 rm -f *.bin *.flp *.iso
 nasm -f bin -o "$osname.bin" "$osname.asm" || die "Assembly fucked up"
+nasm -f bin -o "stagetwo" "stagetwo.asm" || die "Assembly fucked up"
+cat "$osname.bin" "stagetwo" > "$osname"
 
 # isoboot
 flpboot
