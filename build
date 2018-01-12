@@ -6,25 +6,19 @@ die () {
     printf "$1\n" && exit 1
 }
 
-# Note: The 512 byte bootsector limit doesn't seem to apply to the iso,
-# but we'll try to obey it anyway so that floppy and iso both work.
 isoboot () {
-    # Make a bootable iso
+    # Note: The 512 byte bootsector limit doesn't seem to apply to the iso,
+    # but we'll obey it anyway so floppy and iso work equally well.
     isodir=isodir
     rm -rf "$isodir" && mkdir -p "$isodir" && cp "$osname" "$isodir" &&
     mkisofs -no-emul-boot -input-charset=utf8 \
         -o "$osname.iso" -b "$osname" "$isodir/"
-    # Boot the iso
     qemu-system-x86_64 -cdrom "$osname.iso"
     rm -rf "$osname.iso" "$isodir"
 }
 
 flpboot () {
-    # dd status=noxfer conv=notrunc if="$osname.bin" of="$osname.flp"
-    # dd if="$osname.bin" of="$osname.flp" bs=512
-    # qemu-system-i386 -fda "$osname.bin"   # For more contraints ;)
-    # Note: The floppy is idential to the binary so no extra dd step.
-    qemu-system-x86_64 "$osname"  # Original gangsta
+    qemu-system-x86_64 "$osname"
 }
 
 

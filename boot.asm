@@ -70,10 +70,10 @@ start:
     ; the as86 syntax Linus used in the linux 0.01 bootloader)
     ; Both work, and I'm fairly sure this isn't by accident, since
     ; our cs should *definitely* be zero, or else something fucked up.
-    lgdt [GDTR32]               ; load global descriptor table register
-    mov eax, cr0                ; grab control register zero
-    or  eax, 0x01               ; set protected mode (PE) bit
-    mov cr0, eax                ; ready... set...
+    lgdt [GDTR32]           ; load global descriptor table register
+    mov eax, cr0            ; grab control register zero
+    or  eax, 0x01           ; set protected mode (PE) bit
+    mov cr0, eax            ; ready... set...
 
 
     ; This will reload cs with the value 0x0008.

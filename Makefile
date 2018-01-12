@@ -1,7 +1,7 @@
 CC 	    = gcc
 AS      = gas
 CFLAGS  = -m32 -ffreestanding -nostdlib -Wall -Wextra -I.
-OBJS    = protectedmode.o kmain.o keyboard.o terminal.o string.o
+OBJS    = pmode.o kmain.o keyboard.o terminal.o string.o
 
 default:
 	make bootloader
@@ -12,11 +12,14 @@ bootloader:
 	nasm -f bin -o boot.bin boot.asm
 
 kernel:
-	nasm -f elf32 -o protectedmode.{o,asm}
+	# Everything past the bootloader is compiled to elf so we can easily
+	# link, and then stripped down to raw binary at the end.
+	nasm -f elf32 -o pmode.{o,asm}
 	$(CC) $(CFLAGS) -c *.c
 	ld -m elf_i386 --oformat=binary -Ttext=0x8000 -o kernel.bin $(OBJS)
 
 image:
+	# Original gangsta ;-)
 	cat boot.bin kernel.bin > jasonwnix
 
 clean:

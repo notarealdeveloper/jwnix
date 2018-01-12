@@ -26,7 +26,7 @@ void cursor_draw(void)
 
 void cursor_init(void)
 {
-    cursor = 0x0000 + 2*VGAWIDTH;
+    cursor = 0x0000 + CURSOR_START_LINE*VGAWIDTH;
     cursor_draw();
 }
 
@@ -34,8 +34,8 @@ struct terminal __term = {
     .fg_color   = COLOR_LIGHT_GREY,
     .bg_color   = COLOR_BLACK,
     .buffer     = (u16*) VGABASE,
-    .row        =   2,
-    .col        =   0,
+    .row        = CURSOR_START_LINE,
+    .col        = 0,
 }, *term = &__term;
 
 
