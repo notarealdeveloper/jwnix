@@ -1,20 +1,3 @@
-; SETTING UP 4K OF STACK SPACE AFTER THIS BOOTLOADER
-; From http://en.wikipedia.org/wiki/X86_memory_segmentation
-; "In both real and protected modes the system uses 16-bit segment 
-; registers to derive the actual memory address. In real mode the 
-; registers CS, DS, SS, and ES point to the currently used program 
-; code segment (CS), the current data segment (DS), the current stack
-; segment (SS), and one extra segment chosen by the programmer (ES)."
-
-; From http://wiki.osdev.org/Boot_Sequence
-; A device is "bootable" if it carries a boot sector with the byte 
-; sequence 0x55, 0xAA in bytes 511 and 512 respectively. When the 
-; BIOS finds such a boot sector, it is loaded into memory at a 
-; specific location; this is usually 0x0000:0x7c00 (segment 0, 
-; address 0x7c00). However, some BIOSes load to 0x7c0:0x0000 
-; (segment 0x07c0, offset 0), which resolves to the same physical 
-; address, but can be surprising.
-
 ORG     0           ; Not needed
 BITS    16
 
@@ -100,6 +83,14 @@ BITS    16
 ; push bx ; (or other general register)
 ; retf
 
+; Write a VGA entry
+; =================
+; mov ax, 0x0200+"X" ; Format of VGA entry is bg-nybl, fg-nybl, char
+; mov bx, 0xb000
+; mov gs, bx
+; mov word [gs:0x8000], ax
+
+
 %define INIT        0x7c00  ; where the bios loads our code
 %define PAGESIZE    0x1000  ; The page size: 4092
 %define MBRSIZE     0x0200  ; The size of our boot sector: 512
@@ -112,7 +103,7 @@ start:
     cli                                 ; disable hardware interrupts
     mov sp, 0x7c00 + 0x1000 + 0x200     ; set up the stack segment
 
-	;mov ax, 0x07C0		    ; 0x07C0 is where the BIOS loads our code
+	;mov ax, 0x07C0		    ; 0x7C00 is where the BIOS loads our code
 	;add ax, 288		    ; 288 = (4096 + 512) / 16 bytes per paragraph
 	;mov ss, ax             ; ss = 0x07C0 + 288 = 2272
 	;mov sp, 4096           ; stack pointer = address number 4096
@@ -122,86 +113,10 @@ start:
 	;mov es, ax
 
 
-    mov     ah, 0x0e
-    mov     al, "A"
-    int 0x10
-
-    ; Write a VGA entry
-    mov ax, 0x0200+"X" ; Format of VGA entry is bg-nybl, fg-nybl, char
-    mov bx, 0xb000
-    mov gs, bx
-    mov word [gs:0x8000], ax
-
-    mov     ah, 0x0e
-    mov     al, "B"
-    int 0x10
-
-    ; Clear cx (interrupt handler in machine code)
-    mov dword    [0x2000],   0x90c93166
-    mov dword    [0x2004],   0x90909090
-    mov dword    [0x2008],   0xcf909090
-    mov dword    [0x80*4],   0x2000
-
-
-    mov cx, 0x69
-    mov dx, 0x69
-
-    int 0x80
-
-    cmp cl, 0x00
-    jne die
-
-    cmp dl, 0x69
-    jne die
-
-    mov     ah, 0x0e
-    mov     al, "C"
-    int 0x10
-
-    ; Changing the location of the interrupt handler
-    ; I finally understand all of the insanity (or at least most of it)
-    ; Changing the 0x5000 on the following line to 0x5004 gets us only
-    ; ABC, since we're jumping past the code, while changing it to 
-    ; 0x4ffc gets us all the way to ABCD. However, changing it to
-    ; 0x4fff only gets us ABC, presumably because of a bus error.
-    ; (Edit: It's more likely due to the 0x66 byte mentioned below.)
-    ; Most even numbers in the stretch before 0x5000 get us to ABCD,
-    ; since we just carry on executing into the function.
-    ; However, no even or odd numbers after 0x5000 get us there, except
-    ; for 0x5001, presumably because the lack of a 0x66 clears dl anyway
-    ; (I forget which, but I think one clears dx and one clears dl)
-    mov dword   [0x80*4],   0x5000
-    ; Code to clear dx
-    mov dword   [0x5000],   0xcfd23166
-
-    mov cl, 0x88
-    mov dl, 0x88
-
-    ; Note: This next line is the ultimate proof that our interrupt
-    ; is actually doing something. This jumps into where we began,
-    ; which leads (as expected!) to an infinite loop of ABCs.
-    ; Uncomment this line for some satisfying chaos :-)
-    ; Even better: while 0x7c00 gives infinite ABCs, 0x7c10 gives BCs
-    ; and 0x7c30 gives Cs. This is exactly what we should expect!
-    ; mov dword   [0x80*4],   0x7c00
-    int 0x80
-
-    cmp cl, 0x88
-    jne die
-    cmp dl, 0x00
-    jne die
-
-    ; print "D"
-    ; If we get here, we won!
-    mov     ah, 0x0e
-    mov     al, "D"
-    int     0x10
-
-
-    mov dword    [0x69*4],   INIT+ihandler
+    mov dword    [0x69*4],   INIT+handler
     mov dword    [0x06*4],   INIT+invalid_opcode
 
-
+    int 0x69        ; Interrupt 0x69:
     int 0x69        ; Interrupt 0x69:
 
     ;ud2            ; Generate invalid opcode, to test exception handler!
@@ -210,21 +125,26 @@ start:
     jmp die
 
 
-dd 0xefbeadde
+; Note: add 0xa0 to get to the next row
 align 16
-ihandler:
+handler:
+    push ax
+    push bx
+    push gs
     mov ax, 0x0200+"E" ; Format of VGA entry is bg-nybl, fg-nybl, char
     mov bx, 0xb000
     mov gs, bx
-    mov word [gs:0x85a0], ax
+    mov word [gs:0x8500 + 0xa0*0], ax
     inc al
-    mov word [gs:0x85a2], ax
+    mov word [gs:0x8502 + 0xa0*1], ax
     inc al
-    mov word [gs:0x85a4], ax
+    mov word [gs:0x8504 + 0xa0*2], ax
     inc al
-    mov word [gs:0x85a6], ax
+    mov word [gs:0x8506 + 0xa0*1], ax
     inc al
-    xor cx, cx
+    pop gs
+    pop bx
+    pop ax
     iret
 
 invalid_opcode:
