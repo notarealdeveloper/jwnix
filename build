@@ -21,11 +21,15 @@ flpdir=cdiso
 rm -rf "$flpdir"
 mkdir -p "$flpdir" &&
 cp "$osname.flp" "$flpdir" &&
-mkisofs -no-emul-boot -boot-load-size 4 -input-charset=utf8 -o "$osname.iso" -b "$osname.flp" "$flpdir/" &&
+#mkisofs -no-emul-boot -boot-load-size 4 -input-charset=utf8 \
+#        -o "$osname.iso" -b "$osname.flp" "$flpdir/" &&
+mkisofs -no-emul-boot -input-charset=utf8 \
+        -o "$osname.iso" -b "$osname.flp" "$flpdir/" &&
 rm -rf "$flpdir"
 
 # Note: The "-singlestep" thing doesn't seem to matter
-qemu-system-i386 -singlestep -boot d -cdrom "$osname.iso"
+# qemu-system-i386 -boot d -cdrom "$osname.iso"
+qemu-system-i386 -cdrom "$osname.iso"
 
 # This doesn't seem to matter either
-#rm -f *.bin *.flp *.iso
+# rm -f *.bin *.flp *.iso
