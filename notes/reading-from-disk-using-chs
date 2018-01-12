@@ -1,0 +1,32 @@
+    ; Cylinder = 0 to 1023 (maybe 4095)
+    ; Head = 0 to 15 (maybe 254, maybe 255)
+    ; Sector = 1 to 63
+
+    ; From the good old RBL ;-)
+    ; =========================
+    ; AH = 02h
+    ; AL = Number of sectors to read (must be nonzero, and < 128)
+    ;      Can't cross a page boundary, or a cylinder boundary
+    ; CH = Low eight bits of cylinder number
+    ; CL = Sector number 1-63 (bits 0-5)
+    ;      High two bits of cylinder (bits 6-7, hard disk only)
+    ; DH = Head number
+    ; DL = Drive number. For hard disks, this = 1<<7 = 0b10000000 = 0x80
+    ; ES:BX -> data buffer
+
+    ; Set up the data buffer
+    mov bx, 0x0000                  ; es:bx -> buffer
+    mov ax, 0x1000
+    mov es, ax
+
+    mov ah, 0x02
+    mov al, 1                       ; al = total sector count
+    mov ch, 0x00                    ; ch: cylinder & 0xff
+    mov cl, 0x02 | ((0>>2)&0xc0)    ; cl: sector | ((cylinder>>2)&0xC0)
+    mov dh, 0x00                    ; dh: head
+
+    mov dl, 0x80                    ; dl = "drive number." Typically 0x80
+
+    int 0x13
+
+    jmp 0x1000:0x0000

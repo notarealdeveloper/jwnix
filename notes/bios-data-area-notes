@@ -1,0 +1,25 @@
+; BIOS DATA AREA: 0x00000400 - 0x000004ff (256 bytes)
+; ===================================================
+; Below, we note several places in the BIOS data area where information
+; about the hardware is stored. Using these locations to get the relevant
+; information will make our code more portable than the current strategy,
+; in which we just use the correct IO ports and memory locations
+; directly. So why not do this everywhere in the code now? Well, I'm
+; trying not to even use the  BIOS (i.e., no BIOS calls in my code,
+; after the BIOS loads us) so while the BDA strategy may give us more
+; portability, it also involves using code written by others, which is
+; exactly what I'm trying to avoid, in order to achieve maximum
+; learnin's :-D
+
+; VGA base IO port: RAM 0x0463.
+; Qemu: [0x0463] = 0x3d4
+; This port number is needed for getting and setting cursor position. 
+; We just assume it's 0x3d4, and that works. 
+
+; VGAWIDTH: RAM 0x044A
+; Qemu: [0x044A] = 80
+; This lets us replace the long cmp line in clear_screen with
+; mov         dx,     [0x044A]
+; imul        dx,     VGAHEIGHT
+; imul        dx,     CHARSIZE
+; add         edx,    0xb8000

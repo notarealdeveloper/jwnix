@@ -1,0 +1,54 @@
+; Note: Once we're in an invalid opcode exception handler, 
+; the saved instruction pointer points to the instruction that caused the 
+; exception. Therefore, if we just iret in the standard manner, we'll jump
+; *back* to the invalid opcode, and thus back into this exception handler.
+; This won't be clear unless our debug statements access shared state, so that
+; they write to a different location in VGA memory each time they run. Without
+; this (usually undesirable) property of accessing shared mutable state, 
+; we won't notice that we're in an infinite loop of calling the invalid_opcode 
+; handler, since we'll just keep writing to the same locations in VGA memory.
+align 16
+invalid_opcode:
+    ;push dword ebx
+    mov word [ebx], 0x0300 + "W"
+    add ebx, 2
+    mov word [ebx], 0x0300 + "X"
+    add ebx, 2
+    mov word [ebx], 0x0300 + "Y"
+    add ebx, 2
+    mov word [ebx], 0x0300 + "Z"
+    add ebx, 2
+    ;pop dword ebx
+    ; We're now ready to return, but our instruction pointer is still pointing
+    ; to the invalid opcode. This is where the x86's variable length opcodes
+    ; really make things difficult, at least if we want to *ignore* the 
+    ; exception and keep going. Why? Well, because we don't know how long this 
+    ; invalid opcode *is*, and so we have to decode the shit, which is not
+    ; decodable by definition, since it's not a valid opcode. This gives rise
+    ; to odd ambiguities. For instance, 0f 0b is an invalid opcode. Suppose this
+    ; is followed by another 0f 0b. The CPU attempts to execute the first 0f 0b,
+    ; which triggers an invalid opcode exception,and we end up in this handler.
+    ; We then face a big fucking problem, which (as far as I can tell) is
+    ; unsolvable, even in principle. That is, in this handler, the saved
+    ; instruction pointer still points to the invalid opcode... that is, to
+    ; the *beginning* of the invalid opcode. So we then have to determine how 
+    ; long the invalid opcode is, so that we can skip past it. The first idea
+    ; that comes to mind is to just keep moving until we encounter a valid
+    ; opcode. In this case -- namely 0f 0b 0f 0b -- we'd move past the first 0f
+    ; to the first 0b, and find that the two bytes 0b 0f *are* actually a valid
+    ; opcode: 0b 0f is just "or cx,[bx]" so this strategy would resume execution
+    ; *in the middle of the two invalid opcodes*!!! This problem appears to be
+    ; so difficult to solve given x86's design, that the only general solution
+    ; (at least, the only one I've been able to think of in the last 15 mins)
+    ; is to not try to recover from these exceptions. This is probably a good
+    ; idea, since the code we're trying to execute should all actually be 
+    ; *code*, or else horrible things might happen. Or rather, all of the 
+    ; kernel and bootloader code should have to be valid. There may be a clever
+    ; way (much later in the game) to use the invalid opcode exception
+    ; to abort a running *process* that tries to execute invalid code, but
+    ; trying to handle and recover from these exceptions at a lower level is 
+    ; probably a bad idea anyway.
+    pop  dx
+    add  dx, 2
+    push dx
+    iret
