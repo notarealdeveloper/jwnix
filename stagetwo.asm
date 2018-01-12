@@ -11,24 +11,13 @@
 
 
 from_space:
+    call    cursor_init
+    call    print_init_msg
+
     ;call    clear_screen
-    ;call    print_init_msg
     call    cursor_init
 
     call    cursor_down
-    mov ebx, 0xb8000+0xa0
-
-    mov word [ebx], 0x0600 + "T"
-    add ebx, 2
-    call    cursor_right
-
-    mov word [ebx], 0x0600 + "W"
-    add ebx, 2
-    call    cursor_right
-
-    mov word [ebx], 0x0600 + "O"
-    add ebx, 2
-    call    cursor_right
 
     jmp die
 
@@ -63,6 +52,8 @@ cursor_right:
     ret
 
 redraw_cursor:
+    push ax
+    push dx
     mov al, 0x0f
     mov dx, 0x3d4
     out dx, al
@@ -78,6 +69,9 @@ redraw_cursor:
     mov al, byte [CURSOR+1]
     mov dx, 0x3d5
     out dx, al
+
+    pop dx
+    pop ax
     ret
 
 die:
@@ -88,21 +82,21 @@ die:
 print_init_msg:
     push eax
     push ebx
-    mov ebx, 0xb80a0    ; base address of vga memory map
-    mov ax,  0x0200     ; ah determines the color
 
-    xor esi,esi
-    mov si, 0x7c00+initmsg    ; Put starting address in di
+    mov ebx, 0xb80a0    ; base address of vga memory map + down one line
+    mov ax,  0x0300     ; ah determines the fg and bg color
+
+    mov esi,  initmsg   ; Put starting address in si
 
     .getchar:
-    lodsb                   ; Load byte at address ds:(e)si into al
-    cmp al,     0x00        ; If the byte is 0,
+    lodsb               ; Load byte at address ds:(e)si into al
+    cmp al,     0x00    ; If the byte is 0,
     je .done
-    mov ah, 0x02
     mov word [ebx], ax
     add ebx, 0x02
     jmp .getchar
     .done:
+
     pop ebx
     pop eax
     ret
