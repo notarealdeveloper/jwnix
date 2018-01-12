@@ -13,6 +13,7 @@ section .text
 
 
 USE32
+extern start_kernel
 global _start
 _start:
 protectedmode:
@@ -81,26 +82,12 @@ protectedmode:
     mov ss, eax
     mov esp, SYSLOAD    ; Set a known free location for the stack
 
-    ; Make sure we're really in protected mode
-    mov eax, cr0
-    and eax, 0x1
-    cmp eax, 0x1
-    jne halt
-
-    call    cursor_init                     ; set up the cursor
-    call    cursor_down                     ; move it down one row
-
     mov     ax, 0x0300          ; ah determines the fg and bg color
     mov     esi, protmsg        ; the message to print
     mov     edi, 0xb8000+0xa0   ; base address of vga memory map + 1 line
     call    printmsg
 
-    call linker_test
-
-    ; Write "32!" into VGA memory, for fun
-    mov [0xb8000+(2*0xa0)-(2*3)], byte "3"
-    mov [0xb8000+(2*0xa0)-(2*2)], byte "2"
-    mov [0xb8000+(2*0xa0)-(2*1)], byte "!"
+    call start_kernel
 
     ; Now that you're here, you should relax and enjoy this article, 
     ; since it's almost certainly something you've encountered by now :)
@@ -111,7 +98,7 @@ halt:
     hlt
     jmp halt
 
-%include "cursor.asm"
+
 printmsg:
     ; put string address in si beforehand
     pusha               ; push all general purpose registers
@@ -121,23 +108,10 @@ printmsg:
     je .done            ; then we're done
     mov word [edi], ax  ; otherwise, write the vga entry (fg4,bg4,byte8)
     add edi, 0x02       ; pointer++, since ebx is a (short *)
-    call cursor_right   ; move the cursor right
+    ;call cursor_right   ; move the cursor right
     jmp .getchar        ; get the next character
     .done:
     popa                ; pop all general purpose registers
-    ret
-
-
-extern gccfunc
-global nasmfunc
-linker_test:
-    call gccfunc
-    ret
-nasmfunc:
-    mov     ax, 0x0500          ; ah determines the fg and bg color
-    mov     esi, linkmsg        ; the message to print
-    mov     edi, 0xb8000+2*0xa0 ; base address of vga memory map + 1 line
-    call    printmsg
     ret
 
 

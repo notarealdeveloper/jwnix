@@ -1,7 +1,7 @@
 CC 	    = gcc
 AS      = gas
 CFLAGS  = -m32 -ffreestanding -nostdlib -Wall -Wextra
-OBJS    = *.o
+OBJS    = protectedmode.o kmain.o
 
 default:
 	make bootloader
@@ -13,8 +13,7 @@ bootloader:
 
 kernel:
 	nasm -f elf32 -o protectedmode.{o,asm}
-	$(CC) $(CFLAGS) -c test.c                   # Gives test.o
-	# $(CC) $(CFLAGS) -o kernel.bin -Wl,--oformat=binary $(OBJS) -lgcc
+	$(CC) $(CFLAGS) -c kmain.c
 	ld -m elf_i386 --oformat=binary -Ttext=0x8000 -o kernel.bin $(OBJS)
 
 image:

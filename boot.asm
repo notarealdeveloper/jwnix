@@ -16,8 +16,8 @@ BITS    16
 
 ; jump over the includes
 jmp start
-%include "gdt.asm"
-%include "real-mode-interrupts.asm"
+%include "boot/gdt.asm"
+%include "boot/real-mode-interrupts.asm"
 
 align 16
 start:
