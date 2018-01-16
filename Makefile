@@ -5,7 +5,7 @@ AS      = gas
 ASM     = nasm
 LD32    = ld -m elf_i386
 INCLUDE = -I include
-CFLAGS  = -m32 -ffreestanding -nostdlib -Wall -Wextra $(INCLUDE)
+CFLAGS  = -m32 -ffreestanding -nostdlib -Wall -Wextra -fno-pic -fno-stack-protector $(INCLUDE)
 SYSLOAD = 0x8000
 
 # Make the build nice to look at
