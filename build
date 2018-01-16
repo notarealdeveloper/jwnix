@@ -2,6 +2,8 @@
 
 osname=jasonwnix
 
+DBG=()
+
 die () {
     printf "$1\n" && exit 1
 }
@@ -25,7 +27,7 @@ isoboot () {
 }
 
 flpboot () {
-    qemu-system-x86_64 "$osname" "${DBG[@]}"
+    qemu-system-x86_64 -drive format=raw,file="$osname" "${DBG[@]}"
 }
 
 dumpmem () {
