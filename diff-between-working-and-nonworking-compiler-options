@@ -1,0 +1,63 @@
+--- gcc-arch	2018-01-16 16:13:19.036951382 -0500
++++ gcc-gentoo	2018-01-16 16:13:23.550316281 -0500
+@@ -1,29 +1,45 @@
++--bindir=/usr/x86_64-pc-linux-gnu/gcc-bin/7.2.0
++--build=x86_64-pc-linux-gnu
++--datadir=/usr/share/gcc-data/x86_64-pc-linux-gnu/7.2.0
++--disable-altivec
++--disable-fixed-point
++--disable-libcilkrts
++--disable-libgcj
++--disable-libmpx
++--disable-libmudflap
++--disable-libsanitizer
+ --disable-libssp
+ --disable-libstdcxx-pch
+---disable-libunwind-exceptions
+ --disable-werror
+ --enable-checking=release
+ --enable-clocale=gnu
+ --enable-__cxa_atexit
+ --enable-default-pie
+ --enable-default-ssp
+---enable-gnu-indirect-function
+---enable-gnu-unique-object
+---enable-install-libiberty
+---enable-languages=c,c++,ada,fortran,go,lto,objc,obj-c++
+---enable-libmpx
+---enable-linker-build-id
++--enable-esp
++--enable-languages=c,c++,fortran
++--enable-libgomp
++--enable-libstdcxx-time
++--enable-libvtv
+ --enable-lto
+ --enable-multilib
+---enable-plugin
++--enable-nls
++--enable-obsolete
++--enable-secureplt
+ --enable-shared
++--enable-targets=all
+ --enable-threads=posix
+---infodir=/usr/share/info
+---libdir=/usr/lib
+---libexecdir=/usr/lib
+---mandir=/usr/share/man
++--enable-vtable-verify
++--host=x86_64-pc-linux-gnu
++--includedir=/usr/lib/gcc/x86_64-pc-linux-gnu/7.2.0/include
++--infodir=/usr/share/gcc-data/x86_64-pc-linux-gnu/7.2.0/info
++--mandir=/usr/share/gcc-data/x86_64-pc-linux-gnu/7.2.0/man
+ --prefix=/usr
+---with-bugurl=https://bugs.archlinux.org/
+---with-isl
+---with-linker-hash-style=gnu
++--with-bugurl=https://bugs.gentoo.org/
++--with-gxx-include-dir=/usr/lib/gcc/x86_64-pc-linux-gnu/7.2.0/include/g++-v7
++--with-multilib-list=m32,m64
++--without-included-gettext
++--without-isl
++--with-pkgversion='Gentoo Hardened 7.2.0-r1 p1.1'
++--with-python-dir=/share/gcc-data/x86_64-pc-linux-gnu/7.2.0/python
+ --with-system-zlib

@@ -12,8 +12,7 @@
 
 ; Make sure the dd worked identically for two different drives, at
 ; least within the bootsector.
-; diff <(sudo head -c +512 /dev/sda11 | hexdump -Cv) \
-       <(sudo head -c +512 /dev/sdb   | hexdump -Cv)
+; diff <(sudo head -c +512 /dev/sda11 | hexdump -Cv) <(sudo head -c +512 /dev/sdb   | hexdump -Cv)
 
 ; Note: Use SYSBLOCK = (SYSLOAD-0x7c00)/0x200 hack to make iso happy.
 
