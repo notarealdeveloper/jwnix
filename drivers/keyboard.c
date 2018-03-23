@@ -32,8 +32,6 @@ unsigned char upperkeys[] = {
     'X',  ' ',  'X',  'X',  'X',  'X',  'X',  'X', /* 0x38 - 0x3f */
 };
 
-/* Make this interrupt-driven as soon as you get protected mode
- * interrupts working! Just have to set-up the IDT!!! */
 unsigned char keyboard_getkey(void)
 {
     /* Can also remove final movb, and change last line to :"=a"(c):: */
