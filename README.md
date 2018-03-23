@@ -1,4 +1,4 @@
-# The worst kernel ever :)
+# The worst kernel ever (:
 
 jwnix. (Pronounced "jason double unix").
 
@@ -18,7 +18,4 @@ Along the way, you'll learn important lifelong lessons like:
 2. Goto considered harmful, and
 3. Protected mode is a bitch
 
-
-# Bugs
-
-1. Cursor bug occurs when we backspace across the leftmost boundary to go up a line, proceed any number of slots backwards, and *then* hit enter to go to the next line. The cursor code must not have a representation of what line it's on. EDIT: Scratch that. I'm pretty sure the problem is that it only increments its representation of what line we're on when we hit enter, but it doesn't decrement that representation when we backspace up one line. Should be trivial to fix this, but for now I need to quit programming and get back to work.
+Enjoy! :)
