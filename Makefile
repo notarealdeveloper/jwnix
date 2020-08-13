@@ -18,7 +18,17 @@ TARGET_ARCH	=
 CPPFLAGS 	=
 MAKEFLAGS  += --no-print-directory --warn-undefined-variables
 
-# Note: entry32.asm has to be first, or else we need a linker script
+# Note: entry32.asm has to be first, or else we need a linker script.
+#
+# Update: We have a linker script! I tried the first thing I could
+# think of in a linker script and it magically worked somehow, with
+# zero retries. I don't know if that's ever happened before for
+# anything at this level. So we now use a linker script for the
+# kernel, compile the bootloader and the kernel separately,
+# fucking *cat them together* (lol), and then just execute the
+# thing and it works because we hooked up the addresses right
+# and we still haven't set up virtual memory yet so everything
+# makes sense. Hallelujah!
 obj :=
 
 
@@ -39,8 +49,7 @@ BUILDMODULES   = $(MODULES:%=build-%)
 	$(Q)$(ASMSG)"$<"
 	$(Q)$(ASM) -f elf32 -o $@ $<
 
-#all: syntax-examples bootloader jasonwnix
-all: bootloader jasonwnix
+all: syntax-examples bootloader jasonwnix
 
 syntax-examples:
 	$(Q)$(MSG)"Starting build in target $@. Get ready bitches!"
@@ -55,9 +64,9 @@ bootloader:
 	$(Q)$(ASM) -f bin -o boot/boot.{bin,asm}
 
 jasonwnix: $(BUILDMODULES)
-#	$(Q)$(MSG)obj = $(obj)
+	$(Q)$(MSG)obj = $(obj)
 	$(Q)$(MSG)"Linking object files"
-	$(Q)$(LD32) --oformat=binary -Ttext=$(SYSLOAD) -o kernel.bin $(obj)
+	$(Q)$(LD32) -T linker.ld --oformat=binary -o kernel.bin $(obj)
 	$(Q)$(MSG)"Making bootable image"
 	$(Q)cat boot/boot.bin kernel.bin > jasonwnix
 

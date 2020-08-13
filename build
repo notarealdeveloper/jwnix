@@ -2,7 +2,18 @@
 
 osname=jasonwnix
 
-DBG=()
+# Add `-monitor stdio` to the qemu command line to get a debugging interface.
+# From that interface, type:
+#
+#    xp /32i 0x8000
+#
+# To disassemble the region of memory starting at 0x8000.
+# This can help us to make sure we're jumping to the right address
+# inside the binary in those hairy early stages when we jump from
+# the bootloader to the kernel, despite the fact that the binary
+# bootloader and binary kernel were literally just cat'ed together
+# after separately compiling them.
+DBG=(-monitor stdio)
 
 die () {
     printf "$1\n" && exit 1
@@ -38,7 +49,7 @@ dumpmem () {
 }
 
 debugrun () {
-    DBG=(-S -s)
+    DBG+=(-S -s)
     logfile="/tmp/log"
 
     flpboot &

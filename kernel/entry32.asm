@@ -263,7 +263,7 @@ load_skeleton_idt_entry:
 
 
 section .data
-initmsg:    db "JasonWnix is booting...", 0x00
+initmsg:    db "JasonWnix made it to protected mode.", 0x00
 idtmsg:     db "Protected mode interrupts are working!", 0x00
 picmsg:     db "Programming the interrupt controller.", 0x00
 kbdmsg:     db "Keyboard interrupt handler called", 0x00
