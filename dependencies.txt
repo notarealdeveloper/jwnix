@@ -1,0 +1,5 @@
+# dependencies
+
+You'll need lib32-glibc.
+Also some other things.
+I'm not sure what they are yet.
