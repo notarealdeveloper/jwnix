@@ -5,7 +5,7 @@
 
 #define VGA_WIDTH           80
 #define VGA_HEIGHT          25
-#define CURSOR_START_LINE   3
+#define CURSOR_START_LINE   4
 #define COLOR(term)     (term->fg_color | term->bg_color << 4)
 
 /* Cursor functions */

@@ -93,7 +93,7 @@ protectedmode:
 
     mov     ax,  0x0200         ; ah determines the fg and bg color
     mov     esi, initmsg        ; the message to print
-    mov     edi, 0xb8000        ; base address of vga memory map
+    mov     edi, 0xb8000+1*0xa0 ; base address of vga memory map + 1 line.
     call    printmsg
 
     ; Now that you're here, you should relax and enjoy this article, 
@@ -123,7 +123,7 @@ protectedmode:
 
     mov     ax, 0x0400
     mov     esi, picmsg
-    mov     edi, 0xb8000+2*0xa0
+    mov     edi, 0xb8000+3*0xa0
     call    printmsg
 
     ; First, remap the PIC because IBM fucked up back in the dark ages...
@@ -163,7 +163,7 @@ int_handler_software:
     pusha
     mov     ax,  0x0300         ; ah determines the fg and bg color
     mov     esi, idtmsg         ; the message to print
-    mov     edi, 0xb8000+1*0xa0 ; base addr of vga memory map + 2 lines
+    mov     edi, 0xb8000+2*0xa0 ; base addr of vga memory map + 2 lines
     call    printmsg
     popa
     iret
@@ -174,7 +174,7 @@ int_handler_timer:
 
     mov     ax,  0x0700
     mov     esi, timermsg
-    mov     edi, 0xb8000+4*0xa0
+    mov     edi, 0xb8000+5*0xa0
     add     edi, dword [LINE]
     add     dword [LINE], 0xa0
     call    printmsg
