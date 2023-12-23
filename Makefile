@@ -79,7 +79,7 @@ jasonwnix: $(BUILDMODULES)
 # build-$(1): $(shell echo $(obj) | grep -Eo $(1)"/[^ ]*")
 define target-factory
 build-$(1): $(filter $(1)/%,  $(obj))
-#	$(Q)$(MSG)"In target build-$(1)"
+	$(Q)$(MSG)"In target build-$(1)"
 endef
 
 # Like a boss!
