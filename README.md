@@ -19,3 +19,6 @@ Along the way, you'll learn important lifelong lessons like:
 3. Protected mode is a bitch
 
 Enjoy! :)
+
+# dependencies
+You'll need qemu-system-x86 and lib32-glibc.
