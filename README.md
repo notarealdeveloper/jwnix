@@ -21,4 +21,6 @@ Along the way, you'll learn important lifelong lessons like:
 Enjoy! :)
 
 # dependencies
-You'll need qemu-system-x86 and lib32-glibc.
+- lib32-glibc
+- qemu-system-x86
+- some qemu ui, since they seem to ship separately on some distros. qemu-ui-gtk should work on linux.
